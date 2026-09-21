@@ -5,6 +5,7 @@ from ..analysis.content_analysis import content_evidence
 from ..analysis.url_analysis import extract_urls, url_evidence
 from ..config import Settings
 from ..extractor.ioc_extractor import extract_iocs
+from ..enrichment.configured import providers_from_config
 from ..enrichment.orchestrator import EnrichmentOrchestrator
 from ..models.evidence import AnalysisAreaStatus, AnalysisCompleteness
 from ..models.result import AnalysisResult
@@ -18,7 +19,8 @@ from ..scoring.rule_engine import score_evidence
 class Analyzer:
     def __init__(self, settings: Settings | None = None, providers=None) -> None:
         self.settings = settings or Settings()
-        self.enrichment = EnrichmentOrchestrator(providers)
+        configured = providers_from_config(self.settings.threat_intelligence) if providers is None else providers
+        self.enrichment = EnrichmentOrchestrator(configured)
 
     def analyze(self, raw: bytes) -> AnalysisResult:
         errors: list[str] = []
@@ -45,31 +47,20 @@ class Analyzer:
         evidence.extend(attachment_evidence(email))
         content_findings = content_evidence(email)
         evidence.extend(content_findings)
-
-        content_available = bool(
-            (email.body_text or "").strip()
-            or (email.body_html or "").strip()
-        )
-        content_status = "complete" if content_available else "not_evaluable"
-        content_note = (
-            "Deterministic local content heuristics were applied."
-            if content_available
-            else "No usable message body was available for content analysis."
-        )
-
         iocs = extract_iocs(email, urls, evidence)
         threat_intelligence = self.enrichment.enrich(iocs)
-
-        ti_status = "not_evaluable" if not self.enrichment.providers else "complete"
-        ti_note = (
-            "Threat-intelligence enrichment was not attempted."
-            if not self.enrichment.providers
-            else "Threat-intelligence provider results were collected."
-        )
         url_status = "partial" if any(item.analysis_status != "complete" for item in urls) else "complete"
         url_note = "One or more URL candidates could not be safely normalized." if url_status == "partial" else "URLs were inspected without fetching them."
         mail_flow_status = "partial" if any(hop.malformed for hop in email.received_hops) else "complete"
         mail_flow_note = "One or more Received headers were malformed." if mail_flow_status == "partial" else "Received headers were inspected where available."
+        content_status = "complete" if (email.body_text or email.body_html).strip() else "not_evaluable"
+        content_note = (
+            "Deterministic local content heuristics were applied."
+            if content_status == "complete"
+            else "No usable email body was available for content analysis."
+        )
+        ti_status = "not_evaluable" if not self.enrichment.providers else "complete"
+        ti_note = "Threat-intelligence enrichment was not attempted." if not self.enrichment.providers else "Threat-intelligence provider results were collected."
 
         completeness = AnalysisCompleteness({
             "parser": AnalysisAreaStatus("complete", "Email was parsed locally.", required=True),
