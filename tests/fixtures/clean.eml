@@ -1,0 +1,10 @@
+From: notifications@example.com
+To: analyst@example.net
+Subject: Monthly report
+Date: Mon, 01 Jan 2026 10:00:00 +0000
+Message-ID: <report@example.com>
+Authentication-Results: mx.example.net; spf=pass; dkim=pass; dmarc=pass
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Your monthly report is ready.

@@ -1,0 +1,17 @@
+From: billing@example.com
+To: analyst@example.net
+Subject: Invoice
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="b"
+
+--b
+Content-Type: text/plain; charset="utf-8"
+
+Invoice attached.
+--b
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="invoice.pdf.exe"
+Content-Transfer-Encoding: base64
+
+TVpYWFhY
+--b--
