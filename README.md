@@ -56,7 +56,7 @@ python analyze.py path/to/message.eml
 python analyze.py path/to/message.eml --json
 ```
 
-The analyzer does not fetch URLs, execute attachments, render untrusted HTML, or make network requests.
+The analyzer does not fetch URLs, execute attachments, render untrusted HTML, or make network requests. Optional VirusTotal and AbuseIPDB configuration is read only from `PHISHLENS_VT_API_KEY` and `PHISHLENS_ABUSEIPDB_API_KEY`; Phase 3B.1 configures enabled providers but does not make API calls. `PHISHLENS_TI_TIMEOUT_SECONDS` controls the future request timeout and defaults safely to 10 seconds.
 
 ## Known limitations
 
