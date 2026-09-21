@@ -43,4 +43,6 @@ class ConfiguredThreatIntelProvider:
 
 
 def providers_from_config(config) -> list[ConfiguredThreatIntelProvider]:
+    # Phase 3B.1 compatibility factory remains offline-only. Concrete API
+    # adapters are opt-in and are not implicitly invoked by Analyzer.
     return [ConfiguredThreatIntelProvider(item) for item in config.enabled_provider_configs()]
