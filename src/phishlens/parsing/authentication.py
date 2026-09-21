@@ -12,6 +12,12 @@ from ..models.evidence import AnalysisAreaStatus, EvidenceItem
 # remain representable without being converted into pass/fail.
 COMMON_RESULTS = {"pass", "fail", "softfail", "neutral", "none", "temperror", "permerror"}
 PRIMARY_METHODS = {"spf", "dkim", "dmarc", "arc"}
+
+# AUTH_RESULTS_TRUST_BOUNDARY
+# Authentication-Results is treated as received message evidence.
+# This phase does not independently verify SPF, DKIM, or DMARC through DNS.
+# A parsed authentication result therefore does not by itself prove sender
+# authenticity or maliciousness.
 METHOD_RE = re.compile(r"^\s*(spf|dkim|dmarc|arc)\s*=\s*([^\s;]+)(.*)$", re.IGNORECASE)
 PROPERTY_RE = re.compile(r"(?:^|\s)([A-Za-z][A-Za-z0-9_.-]*)\s*=\s*([^\s;]+)")
 

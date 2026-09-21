@@ -55,3 +55,21 @@ def test_authenticated_and_dkim_domain_mismatches_are_distinct_and_not_hard():
     assert "authenticated_domain_mismatch" in ids
     assert "dkim_signing_domain_mismatch" in ids
     assert all(not item.hard_indicator for item in findings)
+def test_dkim_signing_domain_mismatch_is_not_malicious():
+    raw = (
+        b"From: user@example.com\n"
+        b"Authentication-Results: mx; dkim=pass header.d=mailer.example.net header.s=s1; "
+        b"dmarc=pass header.from=example.com\n\nbody"
+    )
+    email = parse_eml_bytes(raw)
+    auth = parse_authentication_results(email)
+    findings = header_evidence(email, auth)
+
+    mismatch = next(
+        item for item in findings
+        if item.signal_id == "dkim_signing_domain_mismatch"
+    )
+
+    assert mismatch.points == 3
+    assert mismatch.severity == "medium"
+    assert mismatch.hard_indicator is False
