@@ -92,4 +92,4 @@ def test_only_virustotal_is_auto_selected(monkeypatch):
         lambda request, timeout: (404, b"{}"),
     )
     analyzer = Analyzer()
-    assert [provider.name for provider in analyzer.enrichment.providers] == ["virustotal"]
+    assert {provider.name for provider in analyzer.enrichment.providers} == {"virustotal", "abuseipdb"}

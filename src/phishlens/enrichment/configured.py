@@ -3,6 +3,7 @@ from __future__ import annotations
 from ..config import ThreatIntelProviderConfig
 from ..models.ioc import IOC
 from ..models.threat_intel import ThreatIntelResult
+from .abuseipdb import AbuseIPDBProvider
 from .virustotal import VirusTotalProvider
 
 
@@ -54,7 +55,8 @@ def providers_from_config(config, *, include_api_adapters: bool = False) -> list
         if include_api_adapters:
             if item.name == "virustotal":
                 providers.append(VirusTotalProvider(item))
-            # No other provider is auto-enabled in Phase 3B.3.
+            elif item.name == "abuseipdb":
+                providers.append(AbuseIPDBProvider(item))
         else:
             providers.append(ConfiguredThreatIntelProvider(item))
     return providers
