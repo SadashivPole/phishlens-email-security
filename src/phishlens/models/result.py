@@ -78,6 +78,11 @@ def _safe_evidence(item: dict[str, Any]) -> dict[str, Any]:
         safe_evidence.pop("display_text", None)
         item = dict(item)
         item["evidence"] = safe_evidence
+    elif isinstance(evidence, dict) and evidence.get("ioc_type") == "url" and "ioc_value" in evidence:
+        safe_evidence = dict(evidence)
+        safe_evidence["ioc_value"] = _redact_url(str(safe_evidence["ioc_value"]))
+        item = dict(item)
+        item["evidence"] = safe_evidence
     return item
 
 

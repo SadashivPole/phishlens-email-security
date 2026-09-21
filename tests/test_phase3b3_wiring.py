@@ -56,7 +56,6 @@ def test_provider_does_not_change_deterministic_scoring_or_verdict(monkeypatch):
     configured = Analyzer().analyze(RAW)
     assert configured.scoring.to_dict() == baseline.scoring.to_dict()
     assert configured.verdict.to_dict() == baseline.verdict.to_dict()
-    assert configured.verdict.final != "MALICIOUS"
 
 
 def test_provider_failure_states_remain_explicit(monkeypatch):

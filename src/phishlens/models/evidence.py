@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
-Category = Literal["authentication", "identity", "url", "attachment", "content"]
+Category = Literal["authentication", "identity", "url", "attachment", "content", "threat_intelligence"]
 Severity = Literal["info", "low", "medium", "high", "critical"]
 Reliability = Literal["low", "medium", "high"]
 Completeness = Literal["complete", "partial", "unavailable", "not_evaluable"]

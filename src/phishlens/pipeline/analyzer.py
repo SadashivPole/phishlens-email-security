@@ -14,6 +14,7 @@ from ..parsing.eml_parser import parse_eml_bytes
 from ..parsing.headers import header_evidence, parse_received_headers, received_evidence
 from ..scoring.policy import apply_policy
 from ..scoring.rule_engine import score_evidence
+from ..scoring.threat_intel_policy import has_provider_failure, threat_intel_evidence
 
 
 class Analyzer:
@@ -53,6 +54,7 @@ class Analyzer:
         evidence.extend(content_findings)
         iocs = extract_iocs(email, urls, evidence)
         threat_intelligence = self.enrichment.enrich(iocs)
+        evidence.extend(threat_intel_evidence(threat_intelligence))
         url_status = "partial" if any(item.analysis_status != "complete" for item in urls) else "complete"
         url_note = "One or more URL candidates could not be safely normalized." if url_status == "partial" else "URLs were inspected without fetching them."
         mail_flow_status = "partial" if any(hop.malformed for hop in email.received_hops) else "complete"
@@ -63,8 +65,14 @@ class Analyzer:
             if content_status == "complete"
             else "No usable email body was available for content analysis."
         )
-        ti_status = "not_evaluable" if not self.enrichment.providers else "complete"
-        ti_note = "Threat-intelligence enrichment was not attempted." if not self.enrichment.providers else "Threat-intelligence provider results were collected."
+        ti_status = "not_evaluable" if not self.enrichment.providers else ("partial" if has_provider_failure(threat_intelligence) else "complete")
+        ti_note = (
+            "Threat-intelligence enrichment was not attempted."
+            if not self.enrichment.providers
+            else "One or more threat-intelligence lookups were incomplete or unavailable."
+            if has_provider_failure(threat_intelligence)
+            else "Threat-intelligence provider results were collected."
+        )
 
         completeness = AnalysisCompleteness({
             "parser": AnalysisAreaStatus("complete", "Email was parsed locally.", required=True),
@@ -78,7 +86,7 @@ class Analyzer:
             "threat_intelligence": AnalysisAreaStatus(ti_status, ti_note, required=False),
         })
         scoring = score_evidence(evidence)
-        verdict = apply_policy(scoring, completeness, evidence)
+        verdict = apply_policy(scoring, completeness, evidence, threat_intelligence)
         return AnalysisResult("1.0", email, urls, evidence, scoring, completeness, verdict, errors, iocs, threat_intelligence)
 
     def _unresolved_result(self, raw: bytes, error: str) -> AnalysisResult:
