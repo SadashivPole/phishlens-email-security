@@ -27,3 +27,19 @@ def test_suspicious_encoding_is_flagged_without_double_decoding():
     item = analyze_url("https://example.com/%252fsecret")
     assert item.suspicious_encoding is True
     assert "%252f" in item.original_url
+
+
+def test_idn_port_and_redirect_structure_are_detected_without_fetching():
+    item = analyze_url("https://xn--pple-43d.example:8080/login?redirect=https%3A%2F%2Fexample.com")
+    assert item.has_punycode is True
+    assert item.suspicious_port is True
+    assert item.redirect_indicator is True
+    ids = {finding.signal_id for finding in url_evidence([item])}
+    assert {"idn_punycode_url", "nonstandard_url_port", "redirect_structure"} <= ids
+
+
+def test_malformed_url_is_represented_as_partial_indicator():
+    item = analyze_url("https://example.com:invalid/")
+    assert item.analysis_status == "partial"
+    assert item.normalized_url == ""
+    assert item.analysis_error

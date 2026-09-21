@@ -22,6 +22,8 @@ MATERIAL_SIGNAL_IDS = {
     "url_shortener",
     "attachment_type_mismatch",
     "attachment_double_extension",
+    "credential_urgency_combination",
+    "payment_urgency_combination",
 }
 
 
