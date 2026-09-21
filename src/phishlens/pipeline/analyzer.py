@@ -19,7 +19,11 @@ from ..scoring.rule_engine import score_evidence
 class Analyzer:
     def __init__(self, settings: Settings | None = None, providers=None) -> None:
         self.settings = settings or Settings()
-        configured = providers_from_config(self.settings.threat_intelligence) if providers is None else providers
+        configured = (
+            providers_from_config(self.settings.threat_intelligence, include_api_adapters=True)
+            if providers is None
+            else providers
+        )
         self.enrichment = EnrichmentOrchestrator(configured)
 
     def analyze(self, raw: bytes) -> AnalysisResult:
