@@ -7,7 +7,9 @@ from typing import Any
 from .email import ParsedEmail
 from .evidence import AnalysisCompleteness, EvidenceItem
 from .indicators import UrlIndicator, _redact_url
+from .ioc import IOC
 from .scoring import ScoringResult
+from .threat_intel import ThreatIntelResult
 from .verdict import VerdictResult
 
 
@@ -21,6 +23,8 @@ class AnalysisResult:
     completeness: AnalysisCompleteness
     verdict: VerdictResult
     errors: list[str] = field(default_factory=list)
+    iocs: list[IOC] = field(default_factory=list)
+    threat_intelligence: list[ThreatIntelResult] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -32,6 +36,8 @@ class AnalysisResult:
             "completeness": self.completeness.to_dict(),
             "verdict": self.verdict.to_dict(),
             "errors": self.errors,
+            "iocs": [item.to_dict() for item in self.iocs],
+            "threat_intelligence": [item.to_dict() for item in self.threat_intelligence],
         }
 
     def to_safe_dict(self) -> dict[str, Any]:
@@ -57,6 +63,8 @@ class AnalysisResult:
             "completeness": self.completeness.to_dict(),
             "verdict": self.verdict.to_dict(),
             "errors": self.errors,
+            "iocs": [item.to_safe_dict() for item in self.iocs],
+            "threat_intelligence": [item.to_safe_dict() for item in self.threat_intelligence],
         }
 
 
