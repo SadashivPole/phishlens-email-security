@@ -23,6 +23,9 @@ class UrlIndicator:
     display_mismatch: bool = False
     has_userinfo: bool = False
     suspicious_encoding: bool = False
+    has_punycode: bool = False
+    suspicious_port: bool = False
+    redirect_indicator: bool = False
     analysis_status: str = "complete"
     analysis_error: str | None = None
 
@@ -41,6 +44,9 @@ class UrlIndicator:
             "display_mismatch": self.display_mismatch,
             "has_userinfo": self.has_userinfo,
             "suspicious_encoding": self.suspicious_encoding,
+            "has_punycode": self.has_punycode,
+            "suspicious_port": self.suspicious_port,
+            "redirect_indicator": self.redirect_indicator,
             "analysis_status": self.analysis_status,
             "analysis_error": self.analysis_error,
         }

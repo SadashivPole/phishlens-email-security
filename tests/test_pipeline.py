@@ -73,6 +73,20 @@ def test_duplicate_scoring_is_bounded():
     assert result.verdict.final != "MALICIOUS"
 
 
+def test_pipeline_applies_content_analysis_without_external_services():
+    raw = (
+        b"From: sender@example.com\n"
+        b"Authentication-Results: mx; spf=pass; dkim=pass; dmarc=pass\n\n"
+        b"Verify your password immediately within 24 hours."
+    )
+    result = Analyzer().analyze(raw)
+    ids = {item.signal_id for item in result.evidence}
+    assert "credential_request" in ids
+    assert "urgency_language" in ids
+    assert result.completeness.areas["content"].status == "complete"
+    assert result.verdict.final != "MALICIOUS"
+
+
 def test_pipeline_includes_received_hops_without_external_lookup():
     raw = (
         b"From: sender@example.com\n"
@@ -137,3 +151,10 @@ def test_sensitive_query_values_are_redacted_in_safe_report():
     serialized = json.dumps(result.to_safe_dict())
     assert "secret-value" not in serialized
     assert "%5BREDACTED%5D" in serialized
+def test_pipeline_marks_content_not_evaluable_when_body_is_empty():
+    raw = (
+        b"From: sender@example.com\n"
+        b"Subject: No body\n\n"
+    )
+    result = Analyzer().analyze(raw)
+    assert result.completeness.areas["content"].status == "not_evaluable"

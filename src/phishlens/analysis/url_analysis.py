@@ -3,7 +3,7 @@ from __future__ import annotations
 import html
 import ipaddress
 import re
-from urllib.parse import SplitResult, urlsplit, urlunsplit
+from urllib.parse import SplitResult, parse_qsl, urlsplit, urlunsplit
 
 from ..models.email import ParsedEmail
 from ..models.evidence import EvidenceItem
@@ -11,6 +11,7 @@ from ..models.indicators import UrlIndicator
 
 URL_RE = re.compile(r"https?://[^\s<>\"'{}|\\^`\[\]]+", re.IGNORECASE)
 SHORTENERS = {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly", "lnkd.in"}
+REDIRECT_QUERY_KEYS = {"url", "u", "redirect", "redirect_url", "target", "dest", "destination", "next", "continue", "return", "link", "redir"}
 
 
 def extract_urls(email: ParsedEmail) -> list[UrlIndicator]:
@@ -48,6 +49,8 @@ def extract_urls(email: ParsedEmail) -> list[UrlIndicator]:
 
 def analyze_url(url: str, context: str = "unknown", display_text: str | None = None) -> UrlIndicator:
     try:
+        original_parsed = urlsplit(url)
+        original_hostname = original_parsed.hostname or ""
         normalized = normalize_url(url)
         parsed = urlsplit(normalized)
         hostname = parsed.hostname.lower() if parsed.hostname else None
@@ -57,6 +60,10 @@ def analyze_url(url: str, context: str = "unknown", display_text: str | None = N
         domain = hostname
         has_userinfo = bool(parsed.username or parsed.password)
         suspicious_encoding = bool(re.search(r"%(?:25|2f|5c|40|3a|3f|23)", url, re.IGNORECASE))
+        has_punycode = "xn--" in original_hostname.lower() or any(ord(char) > 127 for char in original_hostname)
+        suspicious_port = parsed.port is not None and parsed.port not in {80, 443}
+        query_keys = {key.lower() for key, _ in parse_qsl(parsed.query, keep_blank_values=True)}
+        redirect_indicator = bool(query_keys & REDIRECT_QUERY_KEYS)
         display_mismatch = _display_mismatch(display_text, hostname)
         return UrlIndicator(
             original_url=url,
@@ -70,6 +77,9 @@ def analyze_url(url: str, context: str = "unknown", display_text: str | None = N
             display_mismatch=display_mismatch,
             has_userinfo=has_userinfo,
             suspicious_encoding=suspicious_encoding,
+            has_punycode=has_punycode,
+            suspicious_port=suspicious_port,
+            redirect_indicator=redirect_indicator,
         )
     except (ValueError, UnicodeError) as exc:
         # URL content is attacker-controlled. Preserve the candidate and let
@@ -131,6 +141,12 @@ def url_evidence(urls: list[UrlIndicator]) -> list[EvidenceItem]:
             findings.append(EvidenceItem("url_userinfo", "url", "medium", item.to_dict(), "The URL contains userinfo before the host, a technique sometimes used to disguise the real destination.", "local_url_analysis", "medium", 3))
         if item.suspicious_encoding:
             findings.append(EvidenceItem("suspicious_url_encoding", "url", "low", item.to_dict(), "The URL contains encoding patterns that warrant review.", "local_url_analysis", "low", 1))
+        if item.has_punycode:
+            findings.append(EvidenceItem("idn_punycode_url", "url", "low", item.to_dict(), "The URL uses an internationalized or punycode hostname that requires visual-domain review.", "local_url_analysis", "low", 1))
+        if item.suspicious_port:
+            findings.append(EvidenceItem("nonstandard_url_port", "url", "low", item.to_dict(), "The URL uses a non-default network port.", "local_url_analysis", "low", 1))
+        if item.redirect_indicator:
+            findings.append(EvidenceItem("redirect_structure", "url", "low", item.to_dict(), "The URL contains a redirect-like query parameter; no redirect was followed.", "local_url_analysis", "low", 1))
     return findings
 
 

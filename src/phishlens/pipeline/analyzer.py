@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ..analysis.attachment_analysis import attachment_evidence
+from ..analysis.content_analysis import content_evidence
 from ..analysis.url_analysis import extract_urls, url_evidence
 from ..config import Settings
 from ..models.evidence import AnalysisAreaStatus, AnalysisCompleteness
@@ -39,6 +40,19 @@ class Analyzer:
         urls = extract_urls(email)
         evidence.extend(url_evidence(urls))
         evidence.extend(attachment_evidence(email))
+        content_findings = content_evidence(email)
+        evidence.extend(content_findings)
+
+        content_available = bool(
+            (email.body_text or "").strip()
+            or (email.body_html or "").strip()
+        )
+        content_status = "complete" if content_available else "not_evaluable"
+        content_note = (
+            "Deterministic local content heuristics were applied."
+            if content_available
+            else "No usable message body was available for content analysis."
+        )
         url_status = "partial" if any(item.analysis_status != "complete" for item in urls) else "complete"
         url_note = "One or more URL candidates could not be safely normalized." if url_status == "partial" else "URLs were inspected without fetching them."
         mail_flow_status = "partial" if any(hop.malformed for hop in email.received_hops) else "complete"
@@ -51,7 +65,7 @@ class Analyzer:
             "url": AnalysisAreaStatus(url_status, url_note, required=True),
             "attachment": AnalysisAreaStatus("complete", "Attachment metadata and hashes were generated locally.", required=True),
             "mail_flow": AnalysisAreaStatus(mail_flow_status, mail_flow_note, required=False),
-            "content": AnalysisAreaStatus("not_evaluable", "Content classification is not implemented in this foundation phase.", required=False),
+            "content": AnalysisAreaStatus(content_status, content_note, required=False),
             "reputation": AnalysisAreaStatus("unavailable", "No external reputation provider is enabled.", required=False),
         })
         scoring = score_evidence(evidence)
