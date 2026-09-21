@@ -13,6 +13,8 @@ MATERIAL_SIGNAL_IDS = {
     "spf_fail",
     "dkim_fail",
     "dmarc_fail",
+    "authenticated_domain_mismatch",
+    "dkim_signing_domain_mismatch",
     "ip_literal_url",
     "display_href_mismatch",
     "url_userinfo",

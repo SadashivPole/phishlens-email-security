@@ -15,3 +15,12 @@ def test_hard_indicator_is_explicit_only():
     hard = EvidenceItem("known_malicious_hash", "attachment", "critical", {}, "", "test", "high", 15, True)
     result = score_evidence([heuristic, hard])
     assert result.hard_indicators == ["known_malicious_hash"]
+
+
+def test_authenticated_domain_mismatch_is_deduplicated():
+    findings = [
+        EvidenceItem("authenticated_domain_mismatch", "identity", "medium", {"mechanism": "spf"}, "", "authentication_results", "medium", 3),
+        EvidenceItem("authenticated_domain_mismatch", "identity", "medium", {"mechanism": "spf"}, "", "authentication_results", "medium", 3),
+    ]
+    result = score_evidence(findings)
+    assert result.category_scores["identity"] == 3

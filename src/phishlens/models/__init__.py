@@ -1,4 +1,4 @@
-from .email import Attachment, ParsedEmail
+from .email import Attachment, ParsedEmail, ReceivedHop
 from .evidence import AnalysisCompleteness, AnalysisAreaStatus, EvidenceItem
 from .indicators import UrlIndicator
 from .result import AnalysisResult
@@ -13,6 +13,7 @@ __all__ = [
     "CATEGORY_CAPS",
     "EvidenceItem",
     "ParsedEmail",
+    "ReceivedHop",
     "ScoringResult",
     "UrlIndicator",
     "VerdictResult",

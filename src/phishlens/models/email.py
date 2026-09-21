@@ -6,6 +6,28 @@ from typing import Any
 
 
 @dataclass
+class ReceivedHop:
+    order: int
+    raw: str
+    source_hostname: str | None = None
+    source_ips: list[str] = field(default_factory=list)
+    by_hostname: str | None = None
+    malformed: bool = False
+    suspicious_reasons: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "order": self.order,
+            "raw": self.raw,
+            "source_hostname": self.source_hostname,
+            "source_ips": self.source_ips,
+            "by_hostname": self.by_hostname,
+            "malformed": self.malformed,
+            "suspicious_reasons": self.suspicious_reasons,
+        }
+
+
+@dataclass
 class Attachment:
     filename: str | None
     content_type: str
@@ -40,6 +62,7 @@ class ParsedEmail:
     date: str | None = None
     message_id: str | None = None
     received_headers: list[str] = field(default_factory=list)
+    received_hops: list[ReceivedHop] = field(default_factory=list)
     authentication_results: list[str] = field(default_factory=list)
     dkim_signatures: list[str] = field(default_factory=list)
     body_text: str = ""
@@ -61,6 +84,7 @@ class ParsedEmail:
             "date": self.date,
             "message_id": self.message_id,
             "received_headers": self.received_headers,
+            "received_hops": [item.to_dict() for item in self.received_hops],
             "authentication_results": self.authentication_results,
             "dkim_signatures": self.dkim_signatures,
             "body_text": self.body_text,

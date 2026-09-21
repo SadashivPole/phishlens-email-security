@@ -73,6 +73,19 @@ def test_duplicate_scoring_is_bounded():
     assert result.verdict.final != "MALICIOUS"
 
 
+def test_pipeline_includes_received_hops_without_external_lookup():
+    raw = (
+        b"From: sender@example.com\n"
+        b"Authentication-Results: mx; spf=pass; dkim=pass; dmarc=pass\n"
+        b"Received: from mail.example [203.0.113.5] by mx.example; Mon, 01 Jan 2026 10:00:00 +0000\n\nbody"
+    )
+    result = Analyzer().analyze(raw)
+    assert len(result.email.received_hops) == 1
+    assert result.email.received_hops[0].source_ips == ["203.0.113.5"]
+    assert result.completeness.areas["mail_flow"].status == "complete"
+    assert result.verdict.final == "CLEAN"
+
+
 def test_required_parser_failure_is_unresolved():
     result = Analyzer().analyze(b"This is not a recognizable email message.")
     assert result.completeness.areas["parser"].status == "unavailable"
