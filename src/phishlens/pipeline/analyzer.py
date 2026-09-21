@@ -7,7 +7,7 @@ from ..models.evidence import AnalysisAreaStatus, AnalysisCompleteness
 from ..models.result import AnalysisResult
 from ..parsing.authentication import authentication_evidence_items, parse_authentication_results
 from ..parsing.eml_parser import parse_eml_bytes
-from ..parsing.headers import header_evidence
+from ..parsing.headers import header_evidence, parse_received_headers, received_evidence
 from ..scoring.policy import apply_policy
 from ..scoring.rule_engine import score_evidence
 
@@ -31,14 +31,18 @@ class Analyzer:
             return self._unresolved_result(raw, "email has no recognizable message headers")
 
         evidence = []
-        evidence.extend(header_evidence(email))
         auth = parse_authentication_results(email)
+        email.received_hops = parse_received_headers(email.received_headers)
+        evidence.extend(header_evidence(email, auth))
         evidence.extend(authentication_evidence_items(auth))
+        evidence.extend(received_evidence(email))
         urls = extract_urls(email)
         evidence.extend(url_evidence(urls))
         evidence.extend(attachment_evidence(email))
         url_status = "partial" if any(item.analysis_status != "complete" for item in urls) else "complete"
         url_note = "One or more URL candidates could not be safely normalized." if url_status == "partial" else "URLs were inspected without fetching them."
+        mail_flow_status = "partial" if any(hop.malformed for hop in email.received_hops) else "complete"
+        mail_flow_note = "One or more Received headers were malformed." if mail_flow_status == "partial" else "Received headers were inspected where available."
 
         completeness = AnalysisCompleteness({
             "parser": AnalysisAreaStatus("complete", "Email was parsed locally.", required=True),
@@ -46,6 +50,7 @@ class Analyzer:
             "authentication": AnalysisAreaStatus(auth.status.status, auth.status.note, required=True),
             "url": AnalysisAreaStatus(url_status, url_note, required=True),
             "attachment": AnalysisAreaStatus("complete", "Attachment metadata and hashes were generated locally.", required=True),
+            "mail_flow": AnalysisAreaStatus(mail_flow_status, mail_flow_note, required=False),
             "content": AnalysisAreaStatus("not_evaluable", "Content classification is not implemented in this foundation phase.", required=False),
             "reputation": AnalysisAreaStatus("unavailable", "No external reputation provider is enabled.", required=False),
         })
@@ -65,6 +70,7 @@ class Analyzer:
             "authentication": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=True),
             "url": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=True),
             "attachment": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=True),
+            "mail_flow": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=False),
             "content": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=False),
             "reputation": AnalysisAreaStatus("unavailable", "No external reputation provider is enabled.", required=False),
         })
