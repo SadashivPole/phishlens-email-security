@@ -15,7 +15,7 @@ def test_pipeline_returns_stable_analysis_result(fixture_dir):
     assert isinstance(result, AnalysisResult)
     payload = result.to_dict()
     assert payload["schema_version"] == "1.0"
-    assert set(payload) == {"schema_version", "email", "urls", "evidence", "scoring", "completeness", "verdict", "errors"}
+    assert set(payload) == {"schema_version", "email", "urls", "evidence", "scoring", "completeness", "verdict", "errors", "iocs", "threat_intelligence"}
     json.dumps(payload)
 
 

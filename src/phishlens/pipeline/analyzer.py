@@ -4,6 +4,8 @@ from ..analysis.attachment_analysis import attachment_evidence
 from ..analysis.content_analysis import content_evidence
 from ..analysis.url_analysis import extract_urls, url_evidence
 from ..config import Settings
+from ..extractor.ioc_extractor import extract_iocs
+from ..enrichment.orchestrator import EnrichmentOrchestrator
 from ..models.evidence import AnalysisAreaStatus, AnalysisCompleteness
 from ..models.result import AnalysisResult
 from ..parsing.authentication import authentication_evidence_items, parse_authentication_results
@@ -14,8 +16,9 @@ from ..scoring.rule_engine import score_evidence
 
 
 class Analyzer:
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(self, settings: Settings | None = None, providers=None) -> None:
         self.settings = settings or Settings()
+        self.enrichment = EnrichmentOrchestrator(providers)
 
     def analyze(self, raw: bytes) -> AnalysisResult:
         errors: list[str] = []
@@ -53,6 +56,16 @@ class Analyzer:
             if content_available
             else "No usable message body was available for content analysis."
         )
+
+        iocs = extract_iocs(email, urls, evidence)
+        threat_intelligence = self.enrichment.enrich(iocs)
+
+        ti_status = "not_evaluable" if not self.enrichment.providers else "complete"
+        ti_note = (
+            "Threat-intelligence enrichment was not attempted."
+            if not self.enrichment.providers
+            else "Threat-intelligence provider results were collected."
+        )
         url_status = "partial" if any(item.analysis_status != "complete" for item in urls) else "complete"
         url_note = "One or more URL candidates could not be safely normalized." if url_status == "partial" else "URLs were inspected without fetching them."
         mail_flow_status = "partial" if any(hop.malformed for hop in email.received_hops) else "complete"
@@ -67,10 +80,11 @@ class Analyzer:
             "mail_flow": AnalysisAreaStatus(mail_flow_status, mail_flow_note, required=False),
             "content": AnalysisAreaStatus(content_status, content_note, required=False),
             "reputation": AnalysisAreaStatus("unavailable", "No external reputation provider is enabled.", required=False),
+            "threat_intelligence": AnalysisAreaStatus(ti_status, ti_note, required=False),
         })
         scoring = score_evidence(evidence)
         verdict = apply_policy(scoring, completeness, evidence)
-        return AnalysisResult("1.0", email, urls, evidence, scoring, completeness, verdict, errors)
+        return AnalysisResult("1.0", email, urls, evidence, scoring, completeness, verdict, errors, iocs, threat_intelligence)
 
     def _unresolved_result(self, raw: bytes, error: str) -> AnalysisResult:
         from ..models.email import ParsedEmail
@@ -87,6 +101,7 @@ class Analyzer:
             "mail_flow": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=False),
             "content": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=False),
             "reputation": AnalysisAreaStatus("unavailable", "No external reputation provider is enabled.", required=False),
+            "threat_intelligence": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=False),
         })
         verdict = VerdictResult("UNRESOLVED", "The email could not be safely parsed.", completeness.overall_status, "low")
         return AnalysisResult("1.0", email, [], [], ScoringResult(), completeness, verdict, [error])
