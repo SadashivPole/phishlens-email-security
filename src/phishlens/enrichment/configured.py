@@ -3,6 +3,7 @@ from __future__ import annotations
 from ..config import ThreatIntelProviderConfig
 from ..models.ioc import IOC
 from ..models.threat_intel import ThreatIntelResult
+from .virustotal import VirusTotalProvider
 
 
 class ConfiguredThreatIntelProvider:
@@ -42,7 +43,18 @@ class ConfiguredThreatIntelProvider:
         )
 
 
-def providers_from_config(config) -> list[ConfiguredThreatIntelProvider]:
-    # Phase 3B.1 compatibility factory remains offline-only. Concrete API
-    # adapters are opt-in and are not implicitly invoked by Analyzer.
-    return [ConfiguredThreatIntelProvider(item) for item in config.enabled_provider_configs()]
+def providers_from_config(config, *, include_api_adapters: bool = False) -> list[object]:
+    """Build configured providers without changing the Phase 3B.1 default.
+
+    The compatibility default remains offline-only. The Analyzer explicitly
+    opts into the implemented API adapters for enabled providers.
+    """
+    providers: list[object] = []
+    for item in config.enabled_provider_configs():
+        if include_api_adapters:
+            if item.name == "virustotal":
+                providers.append(VirusTotalProvider(item))
+            # No other provider is auto-enabled in Phase 3B.3.
+        else:
+            providers.append(ConfiguredThreatIntelProvider(item))
+    return providers
