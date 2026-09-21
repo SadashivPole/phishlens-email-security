@@ -45,6 +45,8 @@ def material_suspicious_evidence(
     ]
     if any(item.severity in {"high", "critical"} for item in material):
         return True
+    if any(item.source == "threat_intelligence_policy" for item in material):
+        return True
     if sum(item.severity == "medium" for item in material) >= 2:
         return True
     return scoring.total_score >= 10 and bool(material)
@@ -54,6 +56,7 @@ def apply_policy(
     scoring: ScoringResult,
     completeness: AnalysisCompleteness,
     evidence: list[EvidenceItem],
+    threat_intelligence=None,
 ) -> VerdictResult:
     status = completeness.overall_status
 
