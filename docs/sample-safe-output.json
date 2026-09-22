@@ -1,0 +1,229 @@
+{
+  "attachments": [],
+  "authentication": [
+    {
+      "method": "spf",
+      "result": "pass"
+    },
+    {
+      "method": "dkim",
+      "result": "pass"
+    },
+    {
+      "method": "dmarc",
+      "result": "pass"
+    }
+  ],
+  "completeness": {
+    "areas": {
+      "attachment": {
+        "note": "Attachment metadata and hashes were generated locally.",
+        "required": true,
+        "status": "complete"
+      },
+      "authentication": {
+        "note": "Authentication-Results assertions were observed and parsed.",
+        "required": true,
+        "status": "complete"
+      },
+      "content": {
+        "note": "Deterministic local content heuristics were applied.",
+        "required": false,
+        "status": "complete"
+      },
+      "identity": {
+        "note": "Available identity headers were inspected.",
+        "required": true,
+        "status": "complete"
+      },
+      "mail_flow": {
+        "note": "Received headers were inspected where available.",
+        "required": false,
+        "status": "complete"
+      },
+      "parser": {
+        "note": "Email was parsed locally.",
+        "required": true,
+        "status": "complete"
+      },
+      "reputation": {
+        "note": "No external reputation provider is enabled.",
+        "required": false,
+        "status": "unavailable"
+      },
+      "threat_intelligence": {
+        "note": "Threat-intelligence enrichment was not attempted.",
+        "required": false,
+        "status": "not_evaluable"
+      },
+      "url": {
+        "note": "URLs were inspected without fetching them.",
+        "required": true,
+        "status": "complete"
+      }
+    },
+    "overall_status": "complete"
+  },
+  "email": {
+    "attachment_count": 0,
+    "cc_addresses": [],
+    "date": null,
+    "from_address": "operations@example.net",
+    "message_id": null,
+    "raw_size_bytes": 290,
+    "reply_to": null,
+    "subject": "Review requested",
+    "to_addresses": [
+      "analyst@example.net"
+    ]
+  },
+  "errors": [],
+  "evidence": [
+    {
+      "category": "url",
+      "evidence": {
+        "analysis_error": null,
+        "analysis_status": "complete",
+        "context": "text",
+        "display_mismatch": false,
+        "domain": "203.0.113.44",
+        "has_punycode": false,
+        "has_userinfo": false,
+        "hostname": "203.0.113.44",
+        "is_ip_literal": true,
+        "is_shortened": false,
+        "normalized_url": "http://203.0.113.44/status",
+        "redirect_indicator": false,
+        "suspicious_encoding": false,
+        "suspicious_port": false
+      },
+      "explanation": "The URL destination is an IP literal rather than a hostname; this is suspicious but not proof of maliciousness.",
+      "hard_indicator": false,
+      "points": 4,
+      "reliability": "medium",
+      "severity": "medium",
+      "signal_id": "ip_literal_url",
+      "source": "local_url_analysis"
+    }
+  ],
+  "iocs": [
+    {
+      "ioc_type": "url",
+      "normalized_value": "http://203.0.113.44/status",
+      "original_value": null,
+      "provenance": {
+        "context": "text"
+      },
+      "source": "local_url_analysis"
+    },
+    {
+      "ioc_type": "ip",
+      "normalized_value": "203.0.113.44",
+      "original_value": "203.0.113.44",
+      "provenance": {
+        "sources": [
+          "local_url_analysis"
+        ],
+        "url": "http://203.0.113.44/status"
+      },
+      "source": "local_url_analysis"
+    },
+    {
+      "ioc_type": "domain",
+      "normalized_value": "example.net",
+      "original_value": "example.net",
+      "provenance": {
+        "field": "from_address",
+        "sources": [
+          "recipient"
+        ]
+      },
+      "source": "from_address"
+    }
+  ],
+  "schema_version": "1.0",
+  "scoring": {
+    "category_caps": {
+      "attachment": 15,
+      "authentication": 20,
+      "content": 5,
+      "identity": 10,
+      "url": 20
+    },
+    "category_scores": {
+      "attachment": 0,
+      "authentication": 0,
+      "content": 0,
+      "identity": 0,
+      "url": 4
+    },
+    "hard_indicators": [],
+    "total_score": 4
+  },
+  "threat_intelligence": [
+    {
+      "confidence": null,
+      "disposition": null,
+      "error": null,
+      "ioc_type": "url",
+      "ioc_value": "[REDACTED_URL]",
+      "observed_indicators": [],
+      "provider": "none",
+      "reputation": null,
+      "source": "enrichment_disabled",
+      "status": "not_attempted",
+      "timestamp": null
+    },
+    {
+      "confidence": null,
+      "disposition": null,
+      "error": null,
+      "ioc_type": "ip",
+      "ioc_value": "203.0.113.44",
+      "observed_indicators": [],
+      "provider": "none",
+      "reputation": null,
+      "source": "enrichment_disabled",
+      "status": "not_attempted",
+      "timestamp": null
+    },
+    {
+      "confidence": null,
+      "disposition": null,
+      "error": null,
+      "ioc_type": "domain",
+      "ioc_value": "example.net",
+      "observed_indicators": [],
+      "provider": "none",
+      "reputation": null,
+      "source": "enrichment_disabled",
+      "status": "not_attempted",
+      "timestamp": null
+    }
+  ],
+  "urls": [
+    {
+      "analysis_error": null,
+      "analysis_status": "complete",
+      "context": "text",
+      "display_mismatch": false,
+      "domain": "203.0.113.44",
+      "has_punycode": false,
+      "has_userinfo": false,
+      "hostname": "203.0.113.44",
+      "is_ip_literal": true,
+      "is_shortened": false,
+      "normalized_url": "http://203.0.113.44/status",
+      "redirect_indicator": false,
+      "suspicious_encoding": false,
+      "suspicious_port": false
+    }
+  ],
+  "verdict": {
+    "analysis_status": "complete",
+    "final": "CLEAN",
+    "hard_indicators": [],
+    "reason": "Supported local analysis completed without material suspicious evidence; this does not prove global safety.",
+    "risk_band": "low"
+  }
+}

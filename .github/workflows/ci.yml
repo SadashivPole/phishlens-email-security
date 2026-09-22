@@ -1,0 +1,26 @@
+name: PhishLens CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install project and test dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Run offline test suite
+        env:
+          PHISHLENS_VT_API_KEY: ""
+          PHISHLENS_ABUSEIPDB_API_KEY: ""
+        run: pytest -q

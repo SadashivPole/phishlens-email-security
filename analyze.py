@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 
 from src.phishlens.config import Settings
 from src.phishlens.pipeline.analyzer import Analyzer
@@ -17,8 +18,14 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()
 
+    try:
+        raw = args.eml_file.read_bytes()
+    except OSError as exc:
+        detail = exc.strerror or type(exc).__name__
+        print(f"error: unable to read input file: {detail}", file=sys.stderr)
+        return 2
+
     settings = Settings()
-    raw = args.eml_file.read_bytes()
     result = Analyzer(settings).analyze(raw)
     payload = result.to_safe_dict() if args.as_json else result.to_dict()
 
