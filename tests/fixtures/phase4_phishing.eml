@@ -1,0 +1,9 @@
+From: security@example.com
+To: analyst@example.net
+Reply-To: attacker@other.example
+Subject: Urgent account verification
+Authentication-Results: mx.example.net; spf=fail; dkim=none; dmarc=fail
+MIME-Version: 1.0
+Content-Type: text/html; charset="utf-8"
+
+<html><body><p>Verify your password immediately.</p><p><a href="http://198.51.100.10/login">Continue to your account</a></p></body></html>
