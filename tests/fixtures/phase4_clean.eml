@@ -1,0 +1,13 @@
+From: finance@example.com
+To: analyst@example.net
+Subject: Monthly report
+Authentication-Results: mx.example.net; spf=pass; dkim=pass; dmarc=pass
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Hello,
+
+The monthly report is attached for your review.
+
+Regards,
+Finance Team

@@ -1,0 +1,7 @@
+From: monitor@example.net
+To: analyst@example.net
+Subject: Monitoring result
+Authentication-Results: mx.example.net; spf=pass; dkim=pass; dmarc=pass
+Content-Type: text/plain; charset="utf-8"
+
+The monitored endpoint is http://192.0.2.55/status. This is an informational message.

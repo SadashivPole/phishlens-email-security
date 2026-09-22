@@ -1,0 +1,7 @@
+From: alerts@example.net
+To: analyst@example.net
+Subject: Connection notice
+Authentication-Results: mx.example.net; spf=pass; dkim=pass; dmarc=pass
+Content-Type: text/plain; charset="utf-8"
+
+The observed service endpoint is http://203.0.113.44/status. No action is required.

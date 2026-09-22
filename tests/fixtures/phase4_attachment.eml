@@ -1,0 +1,18 @@
+From: records@example.net
+To: analyst@example.net
+Subject: Archived document
+Authentication-Results: mx.example.net; spf=pass; dkim=pass; dmarc=pass
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="phase4"
+
+--phase4
+Content-Type: text/plain; charset="utf-8"
+
+The requested document is attached.
+--phase4
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="archive.bin"
+Content-Transfer-Encoding: base64
+
+c2FmZS1maXh0dXJlLWF0dGFjaG1lbnQ=
+--phase4--

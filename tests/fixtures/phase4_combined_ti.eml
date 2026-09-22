@@ -1,0 +1,7 @@
+From: operations@example.net
+To: analyst@example.net
+Subject: Review requested
+Authentication-Results: mx.example.net; spf=pass; dkim=pass; dmarc=pass
+Content-Type: text/plain; charset="utf-8"
+
+Please review the service endpoint at http://203.0.113.44/status before the maintenance window.
