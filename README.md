@@ -25,6 +25,8 @@ A SOC analyst often needs a fast first-pass answer without uploading a potential
 
 All local detection and scoring is deterministic. Provider results are evidence records; they do not directly override the verdict. LLM output is not used anywhere in the pipeline.
 
+Authentication alignment is similarly limited: PhishLens compares the visible From domain with SPF and DKIM domains asserted by received Authentication-Results. It reports strict equality and relaxed equality using the bundled Public Suffix List implementation, but it does not know the effective DMARC alignment mode and therefore reports effective alignment as unknown. These comparisons do not independently evaluate SPF DNS policy or verify DKIM signatures.
+
 ## Verdicts
 
 - **CLEAN** — required local analysis completed without material suspicious evidence. This does not prove global safety.
@@ -73,7 +75,7 @@ python -m pip install --upgrade pip
 python -m pip install -e '.[dev]'
 ```
 
-Runtime code uses the Python standard library. `pytest` is the only development dependency.
+Runtime code uses the Python standard library plus `publicsuffix2`, which supplies the bundled Public Suffix List implementation for organizational-domain derivation. `pytest` is the only development dependency.
 
 ## CLI usage
 
@@ -126,7 +128,7 @@ The GitHub Actions workflow in `.github/workflows/ci.yml` runs the same install 
 
 ## Limitations and non-goals
 
-- No independent SPF evaluation, DKIM cryptographic verification, or DMARC alignment calculation
+- Domain alignment comparisons are informational only; no effective DMARC policy-mode evaluation, independent SPF DNS evaluation, or DKIM cryptographic verification
 - No guarantee that a clean result means globally safe
 - No arbitrary URL retrieval, sandboxing, malware execution, or attachment scanning service
 - No mailbox, Gmail, Graph, IMAP, database, UI, or web API integration

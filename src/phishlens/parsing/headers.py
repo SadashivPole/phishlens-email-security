@@ -7,6 +7,7 @@ from email.utils import parseaddr
 from ..models.email import ParsedEmail, ReceivedHop
 from ..models.evidence import EvidenceItem
 from .authentication import AuthenticationEvidence
+from .domain_alignment import compare_domains
 
 _IPV4_RE = re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])")
 _IPV6_RE = re.compile(r"(?<![\w:])(?:[0-9A-Fa-f]{1,4}:){2,}[0-9A-Fa-f:.]+(?![\w:])")
@@ -69,6 +70,7 @@ def header_evidence(email: ParsedEmail, auth: AuthenticationEvidence | None = No
 
     if auth and from_domain:
         findings.extend(_authenticated_domain_evidence(from_domain, auth))
+        findings.extend(_alignment_evidence(from_domain, auth))
     return findings
 
 
@@ -122,6 +124,80 @@ def received_evidence(email: ParsedEmail) -> list[EvidenceItem]:
             ))
     return findings
 
+
+def _alignment_evidence(from_domain: str, auth: AuthenticationEvidence) -> list[EvidenceItem]:
+    """Compare asserted authentication domains with the visible From domain.
+
+    This is standards-aware domain comparison only. It does not evaluate the
+    effective DMARC policy mode, SPF DNS policy, or DKIM cryptographic validity.
+    """
+    findings: list[EvidenceItem] = []
+    for method, label in (("spf", "SPF"), ("dkim", "DKIM")):
+        records = [
+            item for item in getattr(auth, method)
+            if item.domain and item.result != "unavailable"
+        ]
+        if not records:
+            findings.append(EvidenceItem(
+                signal_id=f"{method}_alignment_not_evaluable",
+                category="identity",
+                severity="info",
+                evidence={
+                    "mechanism": method,
+                    "alignment": "not_evaluable",
+                    "from_domain": from_domain,
+                    "authenticated_domains": [],
+                    "effective_alignment": "unknown",
+                    "provenance": {
+                        "source": "Authentication-Results",
+                        "analysis": "domain comparison only",
+                        "verification": "no independent SPF DNS or DKIM cryptographic verification",
+                        "policy_mode": "unknown",
+                    },
+                },
+                explanation=f"{label} alignment could not be evaluated from the available Authentication-Results properties; effective DMARC alignment is unknown and this is not independent {label} verification.",
+                source="authentication_results",
+                reliability="low",
+                points=0,
+            ))
+            continue
+
+        observations = []
+        for item in records:
+            comparison = compare_domains(from_domain, item.domain)
+            details = comparison.to_dict()
+            if comparison.strict_alignment is True or comparison.relaxed_alignment is True:
+                details["alignment"] = "aligned"
+            elif comparison.strict_alignment is False and comparison.relaxed_alignment is False:
+                details["alignment"] = "misaligned"
+            else:
+                details["alignment"] = "not_evaluable"
+            details["authentication_result"] = item.result
+            details["selector"] = item.selector
+            details["provenance"]["method"] = item.method
+            details["provenance"]["authentication_source"] = item.source
+            observations.append(details)
+
+        states = {item["alignment"] for item in observations}
+        alignment = states.pop() if len(states) == 1 else "partial"
+        findings.append(EvidenceItem(
+            signal_id=f"{method}_alignment",
+            category="identity",
+            severity="info" if alignment == "aligned" else "low",
+            evidence={
+                "mechanism": method,
+                "alignment": alignment,
+                "from_domain": observations[0]["from_domain"],
+                "observations": observations,
+                "effective_alignment": "unknown",
+                "verification_scope": "strict/relaxed domain comparison only; effective DMARC policy mode is unavailable; no independent cryptographic or DNS verification",
+            },
+            explanation=f"{label} strict and relaxed domain alignment were compared from received Authentication-Results evidence; effective DMARC alignment is unknown and this does not independently verify {label}.",
+            source="authentication_results",
+            reliability="medium",
+            points=0,
+        ))
+    return findings
 
 def _authenticated_domain_evidence(from_domain: str, auth: AuthenticationEvidence) -> list[EvidenceItem]:
     # Aggregate mechanism results into at most one finding per underlying
