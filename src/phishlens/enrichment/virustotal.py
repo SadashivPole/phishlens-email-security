@@ -47,7 +47,8 @@ class VirusTotalProvider:
             return self._unsupported(ioc)
 
         value = identifier or ioc.normalized_value
-        endpoint = f"{self._base_url}/{resource}/{quote(value, safe="")}"  # noqa: S310
+        encoded_value = quote(value, safe="")
+        endpoint = f"{self._base_url}/{resource}/{encoded_value}"  # noqa: S310
         request = Request(endpoint, headers={"x-apikey": self._api_key, "accept": "application/json"}, method="GET")
         try:
             status_code, payload = self._http_get(request, self.timeout_seconds)
