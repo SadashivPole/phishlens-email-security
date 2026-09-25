@@ -25,7 +25,10 @@ class Analyzer:
             if providers is None
             else providers
         )
-        self.enrichment = EnrichmentOrchestrator(configured)
+        self.enrichment = EnrichmentOrchestrator(
+            configured,
+            max_requests=self.settings.threat_intelligence.max_requests_per_email,
+        )
 
     def analyze(self, raw: bytes) -> AnalysisResult:
         errors: list[str] = []

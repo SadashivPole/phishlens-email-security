@@ -7,6 +7,7 @@ from typing import Literal
 
 
 DEFAULT_TI_TIMEOUT_SECONDS = 10.0
+DEFAULT_TI_MAX_REQUESTS_PER_EMAIL = 50
 
 
 @dataclass(frozen=True)
@@ -50,12 +51,17 @@ class ThreatIntelConfig:
     virustotal: VirusTotalConfig = field(default_factory=VirusTotalConfig)
     abuseipdb: AbuseIPDBConfig = field(default_factory=AbuseIPDBConfig)
     timeout_seconds: float = DEFAULT_TI_TIMEOUT_SECONDS
+    max_requests_per_email: int = DEFAULT_TI_MAX_REQUESTS_PER_EMAIL
 
     @classmethod
     def from_environment(cls) -> "ThreatIntelConfig":
         timeout = _env_float(
             "PHISHLENS_TI_TIMEOUT_SECONDS",
             DEFAULT_TI_TIMEOUT_SECONDS,
+        )
+        max_requests = _env_int(
+            "PHISHLENS_TI_MAX_REQUESTS_PER_EMAIL",
+            DEFAULT_TI_MAX_REQUESTS_PER_EMAIL,
         )
         return cls(
             virustotal=VirusTotalConfig(
@@ -67,11 +73,13 @@ class ThreatIntelConfig:
                 timeout_seconds=timeout,
             ),
             timeout_seconds=timeout,
+            max_requests_per_email=max_requests,
         )
 
     def safe_dict(self) -> dict[str, object]:
         return {
             "timeout_seconds": self.timeout_seconds,
+            "max_requests_per_email": self.max_requests_per_email,
             "providers": {
                 "virustotal": self.virustotal.safe_dict(),
                 "abuseipdb": self.abuseipdb.safe_dict(),

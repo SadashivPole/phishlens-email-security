@@ -87,6 +87,7 @@ API keys and limits are read only from environment variables when `Settings()` i
 |`PHISHLENS_VT_API_KEY`|unset|Enables the VirusTotal adapter when set to a non-blank value.|
 |`PHISHLENS_ABUSEIPDB_API_KEY`|unset|Enables the AbuseIPDB adapter when set to a non-blank value.|
 |`PHISHLENS_TI_TIMEOUT_SECONDS`|10|Per-request timeout in seconds. Invalid, zero, or non-finite values fall back to the default.|
+| `PHISHLENS_TI_MAX_REQUESTS_PER_EMAIL` | `50` | Maximum threat-intelligence provider lookup attempts per email, shared across all enabled providers. Invalid or non-positive values fall back to the default. |
 |`PHISHLENS_MAX_EMAIL_BYTES`|10485760 (10 MiB)|Larger inputs fail parsing and produce `UNRESOLVED`. Invalid or non-positive values fall back to the default.|
 |`PHISHLENS_MAX_ATTACHMENT_BYTES`|5242880 (5 MiB)|Larger attachments fail parsing and produce `UNRESOLVED`. Invalid or non-positive values fall back to the default.|
 |`PHISHLENS_AUTH_RESULTS_MODE`|`raw`|`raw` treats message-supplied Authentication-Results as untrusted informational assertions. `trusted_ingress` is an explicit opt-in for messages received through a controlled, header-sanitizing ingress. Invalid values fall back to `raw`.|

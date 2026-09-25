@@ -16,7 +16,7 @@ def threat_intel_evidence(results: list[ThreatIntelResult]) -> list[EvidenceItem
     seen: set[tuple[str, str, str]] = set()
     remaining_points = 10
     for result in results:
-        if result.status == "not_attempted":
+        if result.status in {"not_attempted", "budget_exhausted"}:
             continue
         key = (result.provider, result.ioc_type, result.ioc_value)
         if key in seen:
