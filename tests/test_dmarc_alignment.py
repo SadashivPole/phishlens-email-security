@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from src.phishlens.config import Settings
 from src.phishlens.parsing.authentication import parse_authentication_results
 from src.phishlens.parsing.domain_alignment import compare_domains, normalize_domain, organizational_domain
 from src.phishlens.parsing.eml_parser import parse_eml_bytes
@@ -35,6 +36,9 @@ def test_spf_and_dkim_aligned_evidence_is_deterministic_and_not_hard():
     assert dkim.evidence["observations"][0]["selector"] == "s1"
     assert all(not item.hard_indicator for item in (spf, dkim))
     assert all(item.points == 0 for item in (spf, dkim))
+    assert all(item.evidence["trust"] == "untrusted_assertion" for item in (spf, dkim))
+    assert all(item.evidence["decision_eligible"] is False for item in (spf, dkim))
+    assert all(item.reliability == "low" for item in (spf, dkim))
 
 
 def test_misaligned_spf_and_dkim_evidence_has_provenance_without_direct_malicious_verdict():
@@ -92,7 +96,7 @@ def test_malformed_authentication_properties_are_safe_and_explicit():
         b"dkim=pass header.s=selector-without-domain\n\nBody"
     )
     email = parse_eml_bytes(raw)
-    auth = parse_authentication_results(email)
+    auth = parse_authentication_results(email, mode="trusted_ingress", trusted_authserv_id="mx")
     findings = header_evidence(email, auth)
     assert auth.status.status == "partial"
     assert _alignment(findings, "spf").evidence["alignment"] == "aligned"
@@ -121,6 +125,7 @@ def test_alignment_safe_json_keeps_provenance_without_raw_headers():
 
 def test_alignment_does_not_change_clean_verdict_for_aligned_message():
     raw = b"From: sender@example.com\nAuthentication-Results: mx; spf=pass smtp.mailfrom=example.com; dkim=pass header.d=example.com\n\nRoutine body"
-    result = Analyzer().analyze(raw)
+    settings = Settings(auth_results_mode="trusted_ingress", trusted_authserv_id="mx")
+    result = Analyzer(settings, providers=[]).analyze(raw)
     assert result.verdict.final == "CLEAN"
     assert result.completeness.areas["authentication"].status == "complete"

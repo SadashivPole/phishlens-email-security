@@ -4,6 +4,7 @@ import json
 import sys
 from pathlib import Path
 
+from src.phishlens.config import Settings
 from src.phishlens.enrichment.abuseipdb import AbuseIPDBProvider
 from src.phishlens.enrichment.virustotal import VirusTotalProvider
 from src.phishlens.models.ioc import IOC
@@ -31,7 +32,7 @@ def test_realistic_phase4_fixtures_cover_end_to_end_inputs():
     attachment = Analyzer().analyze((FIXTURES / "phase4_attachment.eml").read_bytes())
     malformed = Analyzer().analyze((FIXTURES / "phase4_malformed.eml").read_bytes())
 
-    assert clean.verdict.final == "CLEAN"
+    assert clean.verdict.final == "UNRESOLVED"
     assert phishing.verdict.final == "SUSPICIOUS"
     assert any(ioc.ioc_type == "ip" for ioc in ip_result.iocs)
     assert any(ioc.ioc_type == "hash" for ioc in attachment.iocs)
@@ -91,7 +92,8 @@ def test_provider_failure_preserves_complete_local_verdict():
         def lookup_hash(self, ioc):
             return ThreatIntelResult(self.name, ioc.ioc_type, ioc.normalized_value, "timeout")
 
-    result = Analyzer(providers=[TimeoutProvider()]).analyze((FIXTURES / "phase4_timeout.eml").read_bytes())
+    settings = Settings(auth_results_mode="trusted_ingress", trusted_authserv_id="mx.example.net")
+    result = Analyzer(settings, providers=[TimeoutProvider()]).analyze((FIXTURES / "phase4_timeout.eml").read_bytes())
     assert result.iocs
     assert result.threat_intelligence
     assert all(item.status == "timeout" for item in result.threat_intelligence)
@@ -110,7 +112,8 @@ def test_provider_failure_executes_on_valid_ioc_message():
         lookup_url = lookup_ip
         lookup_hash = lookup_ip
 
-    result = Analyzer(providers=[ErrorProvider()]).analyze((FIXTURES / "phase4_timeout.eml").read_bytes())
+    settings = Settings(auth_results_mode="trusted_ingress", trusted_authserv_id="mx.example.net")
+    result = Analyzer(settings, providers=[ErrorProvider()]).analyze((FIXTURES / "phase4_timeout.eml").read_bytes())
     assert result.iocs
     assert result.threat_intelligence
     assert all(item.status == "error" for item in result.threat_intelligence)
@@ -146,7 +149,8 @@ def test_no_match_does_not_make_email_suspicious():
         __import__("src.phishlens.config", fromlist=["AbuseIPDBConfig"]).AbuseIPDBConfig(api_key=ABUSE_KEY),
         http_get=lambda request, timeout: (200, abuse_payload()),
     )
-    result = Analyzer(providers=[provider]).analyze((FIXTURES / "phase4_ip_ioc.eml").read_bytes())
+    settings = Settings(auth_results_mode="trusted_ingress", trusted_authserv_id="mx.example.net")
+    result = Analyzer(settings, providers=[provider]).analyze((FIXTURES / "phase4_ip_ioc.eml").read_bytes())
     assert any(item.status == "no_match" for item in result.threat_intelligence)
     assert result.verdict.final == "CLEAN"
 

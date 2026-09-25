@@ -69,7 +69,8 @@ def header_evidence(email: ParsedEmail, auth: AuthenticationEvidence | None = No
         ))
 
     if auth and from_domain:
-        findings.extend(_authenticated_domain_evidence(from_domain, auth))
+        if auth.decision_eligible:
+            findings.extend(_authenticated_domain_evidence(from_domain, auth))
         findings.extend(_alignment_evidence(from_domain, auth))
     return findings
 
@@ -148,6 +149,8 @@ def _alignment_evidence(from_domain: str, auth: AuthenticationEvidence) -> list[
                     "from_domain": from_domain,
                     "authenticated_domains": [],
                     "effective_alignment": "unknown",
+                    "trust": auth.trust,
+                    "decision_eligible": auth.decision_eligible,
                     "provenance": {
                         "source": "Authentication-Results",
                         "analysis": "domain comparison only",
@@ -190,11 +193,17 @@ def _alignment_evidence(from_domain: str, auth: AuthenticationEvidence) -> list[
                 "from_domain": observations[0]["from_domain"],
                 "observations": observations,
                 "effective_alignment": "unknown",
+                "trust": auth.trust,
+                "decision_eligible": auth.decision_eligible,
                 "verification_scope": "strict/relaxed domain comparison only; effective DMARC policy mode is unavailable; no independent cryptographic or DNS verification",
             },
-            explanation=f"{label} strict and relaxed domain alignment were compared from received Authentication-Results evidence; effective DMARC alignment is unknown and this does not independently verify {label}.",
+            explanation=(
+                f"{label} strict and relaxed domain alignment were compared from "
+                f"{'configured trusted-ingress' if auth.decision_eligible else 'untrusted message'} "
+                f"Authentication-Results assertions; effective DMARC alignment is unknown and this does not independently verify {label}."
+            ),
             source="authentication_results",
-            reliability="medium",
+            reliability="medium" if auth.decision_eligible else "low",
             points=0,
         ))
     return findings

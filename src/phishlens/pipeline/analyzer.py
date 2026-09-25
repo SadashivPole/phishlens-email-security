@@ -42,7 +42,11 @@ class Analyzer:
             return self._unresolved_result(raw, "email has no recognizable message headers")
 
         evidence = []
-        auth = parse_authentication_results(email)
+        auth = parse_authentication_results(
+            email,
+            mode=self.settings.auth_results_mode,
+            trusted_authserv_id=self.settings.trusted_authserv_id,
+        )
         email.received_hops = parse_received_headers(email.received_headers)
         evidence.extend(header_evidence(email, auth))
         evidence.extend(authentication_evidence_items(auth))

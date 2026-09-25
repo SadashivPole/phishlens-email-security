@@ -52,6 +52,8 @@ class AuthenticationEvidence:
     arc: list[AuthResult] = field(default_factory=list)
     status: AnalysisAreaStatus = field(default_factory=lambda: AnalysisAreaStatus("not_evaluable"))
     header_state: str = "absent"
+    trust: str = "untrusted_assertion"
+    decision_eligible: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -61,10 +63,17 @@ class AuthenticationEvidence:
             "arc": [item.to_dict() for item in self.arc],
             "status": self.status.to_dict(),
             "header_state": self.header_state,
+            "trust": self.trust,
+            "decision_eligible": self.decision_eligible,
         }
 
 
-def parse_authentication_results(email: ParsedEmail) -> AuthenticationEvidence:
+def parse_authentication_results(
+    email: ParsedEmail,
+    *,
+    mode: str = "raw",
+    trusted_authserv_id: str | None = None,
+) -> AuthenticationEvidence:
     evidence = AuthenticationEvidence()
     if not email.authentication_results:
         evidence.status = AnalysisAreaStatus(
@@ -74,9 +83,25 @@ def parse_authentication_results(email: ParsedEmail) -> AuthenticationEvidence:
         return evidence
 
     evidence.header_state = "present"
+    trusted_id = trusted_authserv_id.strip().lower() if trusted_authserv_id else None
+    trusted_mode = mode == "trusted_ingress" and trusted_id is not None
+    headers = email.authentication_results
+
+    if trusted_mode:
+        matching = [header for header in headers if _authserv_id(header) == trusted_id]
+        if len(matching) != 1:
+            evidence.status = AnalysisAreaStatus(
+                "not_evaluable",
+                "Trusted-ingress authentication requires exactly one Authentication-Results header from the configured authserv-id.",
+            )
+            return evidence
+        headers = matching
+        evidence.trust = "trusted_ingress_assertion"
+        evidence.decision_eligible = True
+
     recognized = 0
     malformed_segments = 0
-    for header in email.authentication_results:
+    for header in headers:
         parsed, malformed = _parse_header(header)
         recognized += len(parsed)
         malformed_segments += malformed
@@ -92,22 +117,34 @@ def parse_authentication_results(email: ParsedEmail) -> AuthenticationEvidence:
                     raw_result=raw_result,
                 ))
 
-    if recognized == 0:
+    if not evidence.decision_eligible:
         evidence.status = AnalysisAreaStatus(
             "not_evaluable",
-            "Authentication-Results headers were present but no supported authentication result was parsed.",
+            "Authentication-Results assertions are untrusted for raw input and are informational only.",
+        )
+    elif recognized == 0:
+        evidence.decision_eligible = False
+        evidence.status = AnalysisAreaStatus(
+            "not_evaluable",
+            "The trusted Authentication-Results header contained no supported authentication result.",
         )
     elif malformed_segments:
         evidence.status = AnalysisAreaStatus(
             "partial",
-            "Some Authentication-Results segments were malformed or unsupported.",
+            "Some trusted Authentication-Results segments were malformed or unsupported.",
         )
     else:
         evidence.status = AnalysisAreaStatus(
             "complete",
-            "Authentication-Results assertions were observed and parsed.",
+            "Authentication-Results assertions were accepted under the configured trusted-ingress contract.",
         )
     return evidence
+
+
+def _authserv_id(header: str) -> str | None:
+    candidate, separator, _ = header.partition(";")
+    value = candidate.strip().lower()
+    return value if separator and value else None
 
 
 def _parse_header(header: str) -> tuple[list[tuple[str, str, str | None, str | None, str]], int]:
@@ -136,6 +173,9 @@ def _parse_header(header: str) -> tuple[list[tuple[str, str, str | None, str | N
 
 
 def authentication_evidence_items(auth: AuthenticationEvidence) -> list[EvidenceItem]:
+    if not auth.decision_eligible:
+        return []
+
     findings: list[EvidenceItem] = []
     for method in ("spf", "dkim", "dmarc"):
         seen: set[str] = set()

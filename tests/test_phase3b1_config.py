@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from src.phishlens.config import DEFAULT_TI_TIMEOUT_SECONDS, ThreatIntelConfig
+from src.phishlens.config import DEFAULT_TI_TIMEOUT_SECONDS, Settings, ThreatIntelConfig
 from src.phishlens.enrichment.configured import providers_from_config
 from src.phishlens.models.ioc import IOC
 from src.phishlens.pipeline.analyzer import Analyzer
@@ -117,6 +117,29 @@ def test_configured_provider_is_unavailable_and_offline(monkeypatch):
     assert result.status == "unavailable"
     assert result.provider == "virustotal"
     assert result.ioc_value == ioc.normalized_value
+
+
+def test_authentication_results_configuration_matrix(monkeypatch):
+    monkeypatch.delenv("PHISHLENS_AUTH_RESULTS_MODE", raising=False)
+    monkeypatch.delenv("PHISHLENS_TRUSTED_AUTHSERV_ID", raising=False)
+    assert Settings().auth_results_mode == "raw"
+    assert Settings().trusted_authserv_id is None
+
+    monkeypatch.setenv("PHISHLENS_TRUSTED_AUTHSERV_ID", " mx.example ")
+    assert Settings().auth_results_mode == "raw"
+    assert Settings().trusted_authserv_id == "mx.example"
+
+    monkeypatch.setenv("PHISHLENS_AUTH_RESULTS_MODE", "trusted_ingress")
+    assert Settings().auth_results_mode == "trusted_ingress"
+    assert Settings().trusted_authserv_id == "mx.example"
+
+    monkeypatch.setenv("PHISHLENS_AUTH_RESULTS_MODE", "invalid")
+    assert Settings().auth_results_mode == "raw"
+
+    monkeypatch.delenv("PHISHLENS_TRUSTED_AUTHSERV_ID")
+    monkeypatch.setenv("PHISHLENS_AUTH_RESULTS_MODE", "trusted_ingress")
+    assert Settings().auth_results_mode == "trusted_ingress"
+    assert Settings().trusted_authserv_id is None
 
 
 def test_provider_configuration_does_not_change_phase1_phase2_verdict(monkeypatch):

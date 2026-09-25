@@ -89,12 +89,20 @@ API keys and limits are read only from environment variables when `Settings()` i
 |`PHISHLENS_TI_TIMEOUT_SECONDS`|10|Per-request timeout in seconds. Invalid, zero, or non-finite values fall back to the default.|
 |`PHISHLENS_MAX_EMAIL_BYTES`|10485760 (10 MiB)|Larger inputs fail parsing and produce `UNRESOLVED`. Invalid or non-positive values fall back to the default.|
 |`PHISHLENS_MAX_ATTACHMENT_BYTES`|5242880 (5 MiB)|Larger attachments fail parsing and produce `UNRESOLVED`. Invalid or non-positive values fall back to the default.|
+|`PHISHLENS_AUTH_RESULTS_MODE`|`raw`|`raw` treats message-supplied Authentication-Results as untrusted informational assertions. `trusted_ingress` is an explicit opt-in for messages received through a controlled, header-sanitizing ingress. Invalid values fall back to `raw`.|
+|`PHISHLENS_TRUSTED_AUTHSERV_ID`|unset|Exact authserv-id selector used only in `trusted_ingress` mode. It does not prove header provenance; exactly one matching header is required.|
 
 ```bash
 export PHISHLENS_VT_API_KEY='your-key'
 export PHISHLENS_ABUSEIPDB_API_KEY='your-key'
 export PHISHLENS_TI_TIMEOUT_SECONDS=10
+export PHISHLENS_AUTH_RESULTS_MODE=raw
+# Only for input from a controlled ingress that removes untrusted copies:
+# export PHISHLENS_AUTH_RESULTS_MODE=trusted_ingress
+# export PHISHLENS_TRUSTED_AUTHSERV_ID=mx.example.net
 ```
+
+For arbitrary raw `.eml` input, Authentication-Results is attacker-controlled message data. Raw mode parses assertions only for low-reliability analyst visibility; they cannot complete required authentication analysis, add authentication-derived score, or create authoritative alignment conclusions. Trusted-ingress mode is a caller/operator assertion that a controlled mail boundary removed untrusted Authentication-Results headers before adding its own. Exact authserv-id matching selects that assertion but does not prove provenance or independently verify SPF, DKIM, DMARC, or ARC. Missing, nonmatching, or duplicate matching trusted headers fail closed.
 
 Missing or blank keys disable the corresponding provider. For offline analysis, leave both API keys unset. Never place real credentials in source, fixtures, reports, or documentation. The MIME part limit (100 parts) is fixed in code and is not environment-configurable.
 

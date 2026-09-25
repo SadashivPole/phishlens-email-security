@@ -49,7 +49,7 @@ def test_authenticated_and_dkim_domain_mismatches_are_distinct_and_not_hard():
         b"dkim=pass header.d=signer.example header.s=s1; dmarc=pass header.from=example.com\n\nbody"
     )
     email = parse_eml_bytes(raw)
-    auth = parse_authentication_results(email)
+    auth = parse_authentication_results(email, mode="trusted_ingress", trusted_authserv_id="mx")
     findings = header_evidence(email, auth)
     ids = {item.signal_id for item in findings}
     assert "authenticated_domain_mismatch" in ids
@@ -62,7 +62,7 @@ def test_dkim_signing_domain_mismatch_is_not_malicious():
         b"dmarc=pass header.from=example.com\n\nbody"
     )
     email = parse_eml_bytes(raw)
-    auth = parse_authentication_results(email)
+    auth = parse_authentication_results(email, mode="trusted_ingress", trusted_authserv_id="mx")
     findings = header_evidence(email, auth)
 
     mismatch = next(

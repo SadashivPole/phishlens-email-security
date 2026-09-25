@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 from src.phishlens.analysis.url_analysis import extract_urls, url_evidence
+from src.phishlens.config import Settings
 from src.phishlens.models.result import AnalysisResult
 from src.phishlens.parsing.eml_parser import parse_eml_bytes
 from src.phishlens.pipeline.analyzer import Analyzer
@@ -22,7 +23,7 @@ def test_pipeline_returns_stable_analysis_result(fixture_dir):
 
 def test_exact_fixture_verdicts(fixture_dir):
     analyzer = Analyzer()
-    assert analyzer.analyze((fixture_dir / "clean.eml").read_bytes()).verdict.final == "CLEAN"
+    assert analyzer.analyze((fixture_dir / "clean.eml").read_bytes()).verdict.final == "UNRESOLVED"
     assert analyzer.analyze((fixture_dir / "phishing.eml").read_bytes()).verdict.final == "SUSPICIOUS"
     assert analyzer.analyze((fixture_dir / "attachment.eml").read_bytes()).verdict.final == "SUSPICIOUS"
     assert analyzer.analyze((fixture_dir / "malformed.eml").read_bytes()).verdict.final == "UNRESOLVED"
@@ -34,11 +35,12 @@ def test_local_pipeline_does_not_require_network(fixture_dir, monkeypatch):
 
     monkeypatch.setattr("socket.socket", fail_network)
     result = Analyzer().analyze((fixture_dir / "clean.eml").read_bytes())
-    assert result.verdict.final == "CLEAN"
+    assert result.verdict.final == "UNRESOLVED"
 
 
 def test_optional_reputation_unavailable_does_not_poison_clean_status(fixture_dir):
-    result = Analyzer().analyze((fixture_dir / "clean.eml").read_bytes())
+    settings = Settings(auth_results_mode="trusted_ingress", trusted_authserv_id="mx.example.net")
+    result = Analyzer(settings).analyze((fixture_dir / "clean.eml").read_bytes())
     assert result.completeness.areas["reputation"].status == "unavailable"
     assert result.completeness.areas["reputation"].required is False
     assert result.completeness.overall_status == "complete"
@@ -54,8 +56,18 @@ def test_missing_authentication_is_not_clean_by_default():
 def test_authentication_failure_is_not_malicious_by_itself():
     raw = b"From: sender@example.com\nAuthentication-Results: mx; spf=fail; dmarc=fail\n\nBody"
     result = Analyzer().analyze(raw)
-    assert result.verdict.final != "MALICIOUS"
-    assert result.verdict.final in {"CLEAN", "SUSPICIOUS"}
+    assert result.completeness.areas["authentication"].status == "not_evaluable"
+    assert result.scoring.category_scores["authentication"] == 0
+    assert result.verdict.final == "UNRESOLVED"
+
+
+def test_trusted_ingress_authentication_can_complete_pipeline():
+    raw = b"From: sender@example.com\nAuthentication-Results: mx; spf=pass; dkim=pass; dmarc=pass\n\nBody"
+    settings = Settings(auth_results_mode="trusted_ingress", trusted_authserv_id="mx")
+    result = Analyzer(settings, providers=[]).analyze(raw)
+    assert result.completeness.areas["authentication"].status == "complete"
+    assert result.completeness.overall_status == "complete"
+    assert result.verdict.final == "CLEAN"
 
 
 def test_duplicate_html_destination_produces_one_indicator(fixture_dir):
@@ -98,7 +110,8 @@ def test_pipeline_includes_received_hops_without_external_lookup():
     assert len(result.email.received_hops) == 1
     assert result.email.received_hops[0].source_ips == ["203.0.113.5"]
     assert result.completeness.areas["mail_flow"].status == "complete"
-    assert result.verdict.final == "CLEAN"
+    assert result.completeness.areas["authentication"].status == "not_evaluable"
+    assert result.verdict.final == "UNRESOLVED"
 
 
 def test_required_parser_failure_is_unresolved():
