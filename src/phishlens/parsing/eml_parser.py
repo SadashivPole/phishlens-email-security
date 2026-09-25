@@ -122,12 +122,19 @@ def _extension_mismatch(filename: str | None, declared_type: str, detected_type:
     if detected_type == "unknown":
         return False
     lowered = (filename or "").lower()
+    executable_extensions = (".exe", ".dll", ".scr", ".com")
     if detected_type == "PE executable":
         return declared_type == "application/pdf" or not lowered.endswith((".exe", ".dll", ".scr", ".com"))
     if detected_type == "PDF":
         return declared_type not in {"application/pdf", "application/octet-stream"} or not lowered.endswith(".pdf")
     if detected_type == "ZIP/archive":
-        return declared_type in {"application/pdf", "image/png", "image/jpeg"}
+        return (
+            declared_type in {"application/pdf", "image/png", "image/jpeg"}
+            or lowered.endswith(executable_extensions)
+        )
     if detected_type == "OLE compound document":
-        return declared_type in {"application/pdf", "text/plain"}
+        return (
+            declared_type in {"application/pdf", "text/plain"}
+            or lowered.endswith(executable_extensions)
+        )
     return False
