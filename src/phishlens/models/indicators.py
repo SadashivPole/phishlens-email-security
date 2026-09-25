@@ -6,7 +6,7 @@ from typing import Any
 
 SENSITIVE_QUERY_PARAMS = {
     "token", "access_token", "id_token", "code", "password", "key",
-    "secret", "signature", "session", "auth", "credential",
+    "secret", "signature", "session", "auth", "credential", "email",
 }
 
 
