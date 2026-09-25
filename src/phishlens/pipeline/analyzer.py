@@ -4,7 +4,7 @@ from ..analysis.attachment_analysis import attachment_evidence
 from ..analysis.content_analysis import content_evidence
 from ..analysis.url_analysis import extract_urls, url_evidence
 from ..config import Settings
-from ..extractor.ioc_extractor import extract_iocs
+from ..extractor.ioc_extractor import IOCExtractionLimits, extract_iocs
 from ..enrichment.configured import providers_from_config
 from ..enrichment.orchestrator import EnrichmentOrchestrator
 from ..models.evidence import AnalysisAreaStatus, AnalysisCompleteness
@@ -60,7 +60,16 @@ class Analyzer:
         evidence.extend(attachment_evidence(email))
         content_findings = content_evidence(email)
         evidence.extend(content_findings)
-        iocs = extract_iocs(email, urls, evidence, authentication=auth)
+        extraction_limits = IOCExtractionLimits(
+            max_iocs=self.settings.max_iocs_per_email
+        )
+        iocs = extract_iocs(
+            email,
+            urls,
+            evidence,
+            authentication=auth,
+            limits=extraction_limits,
+        )
         threat_intelligence = self.enrichment.enrich(iocs)
         evidence.extend(threat_intel_evidence(threat_intelligence))
         url_status = "partial" if any(item.analysis_status != "complete" for item in urls) else "complete"
@@ -116,6 +125,13 @@ class Analyzer:
             "identity": AnalysisAreaStatus(identity_status, identity_note, required=True),
             "authentication": AnalysisAreaStatus(auth.status.status, auth.status.note, required=True),
             "url": AnalysisAreaStatus(url_status, url_note, required=True),
+            "ioc_extraction": AnalysisAreaStatus(
+                "partial" if extraction_limits.truncated else "complete",
+                "IOC extraction was capped at the configured maximum; later indicators were not retained."
+                if extraction_limits.truncated
+                else "Indicators of compromise were extracted and deduplicated locally.",
+                required=True,
+            ),
             "attachment": AnalysisAreaStatus(attachment_status, attachment_note, required=True),
             "mail_flow": AnalysisAreaStatus(mail_flow_status, mail_flow_note, required=False),
             "content": AnalysisAreaStatus(content_status, content_note, required=False),
@@ -137,6 +153,7 @@ class Analyzer:
             "identity": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=True),
             "authentication": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=True),
             "url": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=True),
+            "ioc_extraction": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=True),
             "attachment": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=True),
             "mail_flow": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=False),
             "content": AnalysisAreaStatus("not_evaluable", "Parsing did not complete.", required=False),

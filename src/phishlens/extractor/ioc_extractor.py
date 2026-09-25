@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
+from dataclasses import dataclass
 from email.utils import parseaddr
 from urllib.parse import urlsplit
 
@@ -16,23 +17,58 @@ IP_RE = re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])|(?<![\w:])(?:[0-
 DOMAIN_RE = re.compile(r"(?<![@\w])(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}\.?")
 
 
+
+@dataclass
+class IOCExtractionLimits:
+    """Bound and outcome for IOC extraction."""
+
+    max_iocs: int | None = None
+    truncated: bool = False
+
+    def __post_init__(self) -> None:
+        if self.max_iocs is None:
+            return
+        if (
+            not isinstance(self.max_iocs, int)
+            or isinstance(self.max_iocs, bool)
+            or self.max_iocs < 1
+        ):
+            raise ValueError("max_iocs must be a positive integer or None")
+
+
 def extract_iocs(
     email: ParsedEmail,
     urls: list[UrlIndicator],
     evidence: list[EvidenceItem] | None = None,
     authentication: AuthenticationEvidence | None = None,
+    *,
+    limits: IOCExtractionLimits | None = None,
 ) -> list[IOC]:
     found: dict[tuple[str, str], IOC] = {}
 
     def add(ioc: IOC) -> None:
-        if ioc.normalized_value and ioc.key() not in found:
-            found[ioc.key()] = ioc
-        elif ioc.normalized_value and ioc.key() in found:
-            existing = found[ioc.key()]
+        if not ioc.normalized_value:
+            return
+
+        key = ioc.key()
+
+        if key in found:
+            existing = found[key]
             existing.provenance.setdefault("sources", [])
             source = ioc.source
             if source not in existing.provenance["sources"]:
                 existing.provenance["sources"].append(source)
+            return
+
+        if (
+            limits is not None
+            and limits.max_iocs is not None
+            and len(found) >= limits.max_iocs
+        ):
+            limits.truncated = True
+            return
+
+        found[key] = ioc
 
     for item in urls:
         if item.analysis_status == "complete" and item.normalized_url:

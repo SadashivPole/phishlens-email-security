@@ -8,6 +8,7 @@ from typing import Literal
 
 DEFAULT_TI_TIMEOUT_SECONDS = 10.0
 DEFAULT_TI_MAX_REQUESTS_PER_EMAIL = 50
+DEFAULT_MAX_IOCS_PER_EMAIL = 50_000
 
 
 @dataclass(frozen=True)
@@ -95,6 +96,7 @@ class Settings:
     max_email_bytes: int = 10 * 1024 * 1024
     max_attachment_bytes: int = 5 * 1024 * 1024
     max_mime_parts: int = 100
+    max_iocs_per_email: int = DEFAULT_MAX_IOCS_PER_EMAIL
     auth_results_mode: Literal["raw", "trusted_ingress"] = "raw"
     trusted_authserv_id: str | None = None
     threat_intelligence: ThreatIntelConfig = field(default_factory=ThreatIntelConfig.from_environment)
@@ -102,6 +104,7 @@ class Settings:
     def __post_init__(self) -> None:
         object.__setattr__(self, "max_email_bytes", _env_int("PHISHLENS_MAX_EMAIL_BYTES", self.max_email_bytes))
         object.__setattr__(self, "max_attachment_bytes", _env_int("PHISHLENS_MAX_ATTACHMENT_BYTES", self.max_attachment_bytes))
+        object.__setattr__(self, "max_iocs_per_email", _env_int("PHISHLENS_MAX_IOCS_PER_EMAIL", self.max_iocs_per_email))
         object.__setattr__(self, "auth_results_mode", _auth_results_mode(self.auth_results_mode))
         object.__setattr__(self, "trusted_authserv_id", _optional_value("PHISHLENS_TRUSTED_AUTHSERV_ID", self.trusted_authserv_id))
 
