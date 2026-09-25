@@ -1,3 +1,3 @@
-from .ioc_extractor import extract_iocs
+from .ioc_extractor import IOCExtractionLimits, extract_iocs
 
-__all__ = ["extract_iocs"]
+__all__ = ["IOCExtractionLimits", "extract_iocs"]
