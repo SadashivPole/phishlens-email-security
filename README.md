@@ -2,7 +2,7 @@
 
 PhishLens is a local-first, explainable email-analysis tool for SOC triage. It turns an `.eml` message into a bounded risk score, a cautious verdict, explicit per-area completeness states, IOC records, and provenance-backed evidence. All local detection and scoring is deterministic; optional VirusTotal and AbuseIPDB lookups add evidence records without changing the verdict or the score.
 
-Current version: 1.1.0 (`pyproject.toml`, git tag `v1.1.0`). License: MIT (`LICENSE`).
+Current version: 1.2.0 (`pyproject.toml`, git tag `v1.2.0`). License: MIT (`LICENSE`).
 
 ## What problem it solves
 
@@ -177,7 +177,7 @@ Run the complete offline suite:
 pytest -q
 ```
 
-The test suite comprises 143 tests across 20 test modules under `tests/`, with 14 `.eml` fixtures. It covers parsing, header and authentication analysis, domain alignment, URL/content/attachment analysis, IOC extraction, provider adapters and wiring, scoring policy, end-to-end fixtures, release readiness, and CLI behavior. Provider HTTP requests are always injected or monkeypatched, so no test performs external network access or requires credentials. One test patches `socket.socket` to fail if any network connection is attempted. A release-readiness test also verifies that this README retains its required contract sections and that the CI workflow remains offline and secret-free.
+The test suite comprises 158 tests across 20 test modules under `tests/`, with 14 `.eml` fixtures. It covers parsing, header and authentication analysis, domain alignment, URL/content/attachment analysis, IOC extraction, provider adapters and wiring, scoring policy, end-to-end fixtures, release readiness, and CLI behavior. Provider HTTP requests are always injected or monkeypatched, so no test performs external network access or requires credentials. One test patches `socket.socket` to fail if any network connection is attempted. A release-readiness test also verifies that this README retains its required contract sections and that the CI workflow remains offline and secret-free.
 
 
 
