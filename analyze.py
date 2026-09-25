@@ -33,7 +33,7 @@ def main() -> int:
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
         print(f"VERDICT: {payload['verdict']['final']}")
-        print(f"RISK SCORE: {payload['scoring']['total_score']}/100")
+        print(f"RISK SCORE: {payload['scoring']['total_score']}/{payload['scoring']['maximum_score']}")
         print(f"ANALYSIS STATUS: {payload['verdict']['analysis_status']}")
         print(f"REASON: {payload['verdict']['reason']}")
         for finding in payload["evidence"]:

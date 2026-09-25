@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from ..models.evidence import EvidenceItem
-from ..models.scoring import CATEGORY_CAPS, ScoringResult
+from ..models.scoring import CATEGORY_CAPS, MAX_TOTAL_SCORE, ScoringResult
 
 
 def score_evidence(evidence: list[EvidenceItem]) -> ScoringResult:
@@ -26,6 +26,6 @@ def score_evidence(evidence: list[EvidenceItem]) -> ScoringResult:
     }
     return ScoringResult(
         category_scores=bounded,
-        total_score=min(sum(bounded.values()), sum(CATEGORY_CAPS.values())),
+        total_score=min(sum(bounded.values()), MAX_TOTAL_SCORE),
         hard_indicators=hard_indicators,
     )

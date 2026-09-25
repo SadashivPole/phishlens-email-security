@@ -158,6 +158,7 @@
       "url": 4
     },
     "hard_indicators": [],
+    "maximum_score": 70,
     "total_score": 4
   },
   "threat_intelligence": [

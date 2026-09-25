@@ -11,6 +11,7 @@ CATEGORY_CAPS: dict[str, int] = {
     "attachment": 15,
     "content": 5,
 }
+MAX_TOTAL_SCORE = sum(CATEGORY_CAPS.values())
 
 
 @dataclass
@@ -24,5 +25,6 @@ class ScoringResult:
             "category_scores": self.category_scores,
             "category_caps": CATEGORY_CAPS,
             "total_score": self.total_score,
+            "maximum_score": MAX_TOTAL_SCORE,
             "hard_indicators": self.hard_indicators,
         }

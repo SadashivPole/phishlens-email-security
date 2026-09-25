@@ -151,6 +151,7 @@ def test_default_cli_json_is_a_safe_report(fixture_dir):
     assert "token=" not in serialized
     assert "verdict" in payload
     assert "scoring" in payload
+    assert payload["scoring"]["maximum_score"] == sum(payload["scoring"]["category_caps"].values()) == 70
     assert "evidence" in payload
     assert "authentication" in payload
 

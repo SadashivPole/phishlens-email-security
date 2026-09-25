@@ -21,10 +21,23 @@ def test_cli_missing_file_returns_meaningful_nonzero_error():
     assert "Traceback" not in completed.stderr
 
 
+def test_cli_displays_score_with_derived_maximum():
+    completed = subprocess.run(
+        [sys.executable, "analyze.py", str(ROOT / "tests" / "fixtures" / "clean.eml")],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "RISK SCORE: 0/70" in completed.stdout
+    assert "/100" not in completed.stdout
+
+
 def test_sample_safe_output_is_structured_and_payload_free():
     payload = json.loads((ROOT / "docs" / "sample-safe-output.json").read_text())
     assert payload["verdict"]["final"] in {"CLEAN", "SUSPICIOUS", "MALICIOUS", "UNRESOLVED"}
     assert "total_score" in payload["scoring"]
+    assert payload["scoring"]["maximum_score"] == sum(payload["scoring"]["category_caps"].values()) == 70
     assert "areas" in payload["completeness"]
     assert payload["iocs"]
     assert payload["threat_intelligence"]

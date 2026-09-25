@@ -58,7 +58,7 @@ The verdict policy applies in this order (first match wins):
 Scoring:
 
 * Per-category caps: authentication 20, identity 10, URL 20, attachment 15, content 5.
-* The total score is the sum of the capped category scores, so the maximum achievable score is 70. The CLI prints the score with an `/100` label; the effective maximum under current caps is 70.
+* The total score is the sum of the capped category scores. The maximum is derived from those caps and is currently 70; CLI and JSON reports expose the same denominator. Scores are not rescaled to 100.
 * Risk bands: `high` for scores of 30 and above, `medium` for 10-29, `low` below 10.
 * Repeated evidence with the same category and signal ID is scored once.
 
@@ -136,9 +136,9 @@ python analyze.py message.eml --json > safe-report.json
 Example results from the bundled fixtures (`tests/fixtures/`):
 
 ```text
-phishing.eml  -> VERDICT: SUSPICIOUS, RISK SCORE: 26, ANALYSIS STATUS: complete
-clean.eml     -> VERDICT: CLEAN, RISK SCORE: 0, ANALYSIS STATUS: complete
-malformed.eml -> VERDICT: UNRESOLVED, RISK SCORE: 0, ANALYSIS STATUS: unavailable
+phishing.eml  -> VERDICT: SUSPICIOUS, RISK SCORE: 26/70, ANALYSIS STATUS: complete
+clean.eml     -> VERDICT: CLEAN, RISK SCORE: 0/70, ANALYSIS STATUS: complete
+malformed.eml -> VERDICT: UNRESOLVED, RISK SCORE: 0/70, ANALYSIS STATUS: unavailable
 ```
 
 A typical workflow is:
@@ -209,6 +209,5 @@ tests/                      offline test suite and .eml fixtures
 * No LLM, automatic remediation, quarantine, deletion, or response actions.
 * No AbuseIPDB lookup for non-IP IOCs.
 * Provider responses may be unavailable, stale, rate-limited, or incomplete.
-* The CLI score label reads `/100` while the maximum achievable score under current category caps is 70.
 
 The design intentionally keeps threat intelligence and any future AI capability subordinate to explicit deterministic policy. Neither a TI result nor an LLM, if added in a future phase, may directly override the core verdict policy.
