@@ -42,16 +42,28 @@ class AnalysisResult:
 
     def to_safe_dict(self) -> dict[str, Any]:
         """Return the default report representation without message bodies."""
+        singleton_identity_headers = ("from", "reply-to", "return-path", "message-id")
+        identity_header_conflicts = {
+            header_name: len(self.email.headers.get(header_name, []))
+            for header_name in singleton_identity_headers
+            if len(self.email.headers.get(header_name, [])) > 1
+        }
+
+        safe_from = None if "from" in identity_header_conflicts else self.email.from_address
+        safe_reply_to = None if "reply-to" in identity_header_conflicts else self.email.reply_to
+        safe_message_id = None if "message-id" in identity_header_conflicts else self.email.message_id
+
         return {
             "schema_version": self.schema_version,
             "email": {
-                "from_address": self.email.from_address,
+                "from_address": safe_from,
                 "to_addresses": self.email.to_addresses,
                 "cc_addresses": self.email.cc_addresses,
-                "reply_to": self.email.reply_to,
+                "reply_to": safe_reply_to,
                 "subject": self.email.subject,
                 "date": self.email.date,
-                "message_id": self.email.message_id,
+                "message_id": safe_message_id,
+                "identity_header_conflicts": identity_header_conflicts,
                 "raw_size_bytes": self.email.raw_size_bytes,
                 "attachment_count": len(self.email.attachments),
             },

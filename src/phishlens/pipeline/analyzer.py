@@ -48,7 +48,8 @@ class Analyzer:
             trusted_authserv_id=self.settings.trusted_authserv_id,
         )
         email.received_hops = parse_received_headers(email.received_headers)
-        evidence.extend(header_evidence(email, auth))
+        header_findings = header_evidence(email, auth)
+        evidence.extend(header_findings)
         evidence.extend(authentication_evidence_items(auth))
         evidence.extend(received_evidence(email))
         urls = extract_urls(email)
@@ -94,9 +95,22 @@ class Analyzer:
             else "Attachment metadata and hashes were generated locally."
         )
 
+        duplicate_identity_headers = sorted({
+            str(item.evidence.get("header"))
+            for item in header_findings
+            if item.signal_id == "duplicate_identity_header"
+            and item.evidence.get("header")
+        })
+        identity_status = "partial" if duplicate_identity_headers else "complete"
+        identity_note = (
+            "Duplicate singleton identity headers were detected; no single value was treated as authoritative."
+            if duplicate_identity_headers
+            else "Available identity headers were inspected."
+        )
+
         completeness = AnalysisCompleteness({
             "parser": AnalysisAreaStatus(parser_status, parser_note, required=True),
-            "identity": AnalysisAreaStatus("complete", "Available identity headers were inspected.", required=True),
+            "identity": AnalysisAreaStatus(identity_status, identity_note, required=True),
             "authentication": AnalysisAreaStatus(auth.status.status, auth.status.note, required=True),
             "url": AnalysisAreaStatus(url_status, url_note, required=True),
             "attachment": AnalysisAreaStatus(attachment_status, attachment_note, required=True),
