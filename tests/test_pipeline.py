@@ -1,4 +1,5 @@
 from __future__ import annotations
+from email.message import EmailMessage
 
 import json
 import subprocess
@@ -158,3 +159,84 @@ def test_pipeline_marks_content_not_evaluable_when_body_is_empty():
     )
     result = Analyzer().analyze(raw)
     assert result.completeness.areas["content"].status == "not_evaluable"
+
+def _build_mime_truncated_email(
+    *,
+    suspicious_body: bool = False,
+    dangerous_tail: bool = False,
+) -> bytes:
+    message = EmailMessage()
+    message["From"] = "sender@example.com"
+    message["To"] = "recipient@example.com"
+    message["Subject"] = "MIME truncation regression"
+    message["Authentication-Results"] = "mx.example; spf=pass; dkim=pass; dmarc=pass"
+
+    body = (
+        "Verify your password immediately within 24 hours. "
+        "Open http://192.0.2.1/login to continue."
+        if suspicious_body
+        else "Normal message body."
+    )
+    message.set_content(body)
+
+    for index in range(99):
+        message.add_attachment(
+            b"benign attachment",
+            maintype="application",
+            subtype="octet-stream",
+            filename=f"benign-{index}.bin",
+        )
+
+    if dangerous_tail:
+        message.add_attachment(
+            b"MZ" + b"\x00" * 128,
+            maintype="application",
+            subtype="pdf",
+            filename="final-document.pdf",
+        )
+
+    return message.as_bytes()
+
+
+def test_mime_truncation_makes_clean_analysis_unresolved():
+    raw = _build_mime_truncated_email()
+    result = Analyzer().analyze(raw)
+
+    assert "maximum MIME part count exceeded" in result.email.parse_warnings
+    assert result.completeness.areas["parser"].status == "partial"
+    assert result.completeness.areas["attachment"].status == "partial"
+    assert result.completeness.overall_status != "complete"
+    assert result.verdict.final == "UNRESOLVED"
+
+
+def test_mime_truncation_does_not_hide_suspicious_evidence_seen_before_limit():
+    raw = _build_mime_truncated_email(suspicious_body=True)
+    result = Analyzer().analyze(raw)
+
+    assert "maximum MIME part count exceeded" in result.email.parse_warnings
+    assert result.completeness.areas["parser"].status == "partial"
+    assert result.completeness.areas["attachment"].status == "partial"
+    assert result.verdict.final == "SUSPICIOUS"
+
+
+def test_mime_truncation_does_not_claim_complete_attachment_analysis():
+    raw = _build_mime_truncated_email()
+    result = Analyzer().analyze(raw)
+
+    assert len(result.email.attachments) == 98
+    assert result.completeness.areas["attachment"].status == "partial"
+    assert result.completeness.areas["parser"].status == "partial"
+
+
+def test_mime_truncation_does_not_analyze_attachment_after_limit():
+    raw = _build_mime_truncated_email(dangerous_tail=True)
+    result = Analyzer().analyze(raw)
+
+    assert "maximum MIME part count exceeded" in result.email.parse_warnings
+    assert not any(
+        attachment.filename == "final-document.pdf"
+        for attachment in result.email.attachments
+    )
+    assert result.completeness.areas["attachment"].status == "partial"
+    assert result.completeness.overall_status != "complete"
+    assert result.verdict.final == "UNRESOLVED"

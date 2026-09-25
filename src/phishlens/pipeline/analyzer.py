@@ -74,12 +74,28 @@ class Analyzer:
             else "Threat-intelligence provider results were collected."
         )
 
+        mime_parts_truncated = "maximum MIME part count exceeded" in email.parse_warnings
+
+        parser_status = "partial" if mime_parts_truncated else "complete"
+        parser_note = (
+            "MIME part limit was reached; later MIME parts were not inspected."
+            if mime_parts_truncated
+            else "Email was parsed locally."
+        )
+
+        attachment_status = "partial" if mime_parts_truncated else "complete"
+        attachment_note = (
+            "Attachment analysis is incomplete because the MIME part limit was reached."
+            if mime_parts_truncated
+            else "Attachment metadata and hashes were generated locally."
+        )
+
         completeness = AnalysisCompleteness({
-            "parser": AnalysisAreaStatus("complete", "Email was parsed locally.", required=True),
+            "parser": AnalysisAreaStatus(parser_status, parser_note, required=True),
             "identity": AnalysisAreaStatus("complete", "Available identity headers were inspected.", required=True),
             "authentication": AnalysisAreaStatus(auth.status.status, auth.status.note, required=True),
             "url": AnalysisAreaStatus(url_status, url_note, required=True),
-            "attachment": AnalysisAreaStatus("complete", "Attachment metadata and hashes were generated locally.", required=True),
+            "attachment": AnalysisAreaStatus(attachment_status, attachment_note, required=True),
             "mail_flow": AnalysisAreaStatus(mail_flow_status, mail_flow_note, required=False),
             "content": AnalysisAreaStatus(content_status, content_note, required=False),
             "reputation": AnalysisAreaStatus("unavailable", "No external reputation provider is enabled.", required=False),
