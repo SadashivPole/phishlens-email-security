@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 ProviderState = Literal[
     "not_attempted",
+    "budget_exhausted",
     "unavailable",
     "timeout",
     "rate_limited",
