@@ -97,3 +97,107 @@ def test_adversarial_safe_report_does_not_leak_multiple_sensitive_query_values()
     assert "analyst@example.com" not in serialized
     assert "campaign=spring" in serialized
     assert "%5BREDACTED%5D" in serialized
+
+def test_adversarial_attachment_size_boundary_is_enforced():
+    settings = Settings(
+        max_attachment_bytes=10,
+        auth_results_mode="trusted_ingress",
+        trusted_authserv_id="mx",
+    )
+
+    within_limit = EmailMessage()
+    within_limit["From"] = "sender@example.com"
+    within_limit["Authentication-Results"] = "mx; spf=pass; dkim=pass; dmarc=pass"
+    within_limit["Subject"] = "Attachment boundary"
+    within_limit.set_content("Normal body")
+    within_limit.add_attachment(
+        b"1234567890",
+        maintype="application",
+        subtype="octet-stream",
+        filename="boundary.bin",
+    )
+
+    result = Analyzer(settings, providers=[]).analyze(within_limit.as_bytes())
+
+    assert result.completeness.areas["parser"].status == "complete"
+    assert result.completeness.areas["attachment"].status == "complete"
+    assert len(result.email.attachments) == 1
+    assert result.email.attachments[0].size_bytes == 10
+    assert result.verdict.final == "CLEAN"
+
+    over_limit = EmailMessage()
+    over_limit["From"] = "sender@example.com"
+    over_limit["Authentication-Results"] = "mx; spf=pass; dkim=pass; dmarc=pass"
+    over_limit["Subject"] = "Attachment boundary overflow"
+    over_limit.set_content("Normal body")
+    over_limit.add_attachment(
+        b"12345678901",
+        maintype="application",
+        subtype="octet-stream",
+        filename="too-large.bin",
+    )
+
+    result = Analyzer(settings, providers=[]).analyze(over_limit.as_bytes())
+
+    assert result.verdict.final == "UNRESOLVED"
+    assert result.completeness.areas["parser"].status == "unavailable"
+    assert result.email.parse_warnings
+
+
+def test_adversarial_nested_mime_preserves_body_and_attachment_analysis():
+    message = EmailMessage()
+    message["From"] = "sender@example.com"
+    message["Authentication-Results"] = "mx; spf=pass; dkim=pass; dmarc=pass"
+    message["Subject"] = "Nested MIME test"
+
+    message.set_content("Plain body")
+    message.add_alternative("<html><body>HTML body</body></html>", subtype="html")
+    message.add_attachment(
+        b"normal attachment",
+        maintype="application",
+        subtype="octet-stream",
+        filename="document.bin",
+    )
+
+    settings = Settings(
+        auth_results_mode="trusted_ingress",
+        trusted_authserv_id="mx",
+    )
+
+    result = Analyzer(settings, providers=[]).analyze(message.as_bytes())
+
+    assert result.completeness.areas["parser"].status == "complete"
+    assert result.completeness.areas["attachment"].status == "complete"
+    assert result.completeness.areas["content"].status == "complete"
+    assert "Plain body" in result.email.body_text
+    assert "HTML body" in result.email.body_html
+    assert len(result.email.attachments) == 1
+    assert result.email.attachments[0].filename == "document.bin"
+    assert result.verdict.final == "CLEAN"
+
+
+def test_adversarial_malformed_received_hop_is_partial_but_not_required():
+    raw = (
+        b"From: sender@example.com\n"
+        b"Authentication-Results: mx; spf=pass; dkim=pass; dmarc=pass\n"
+        b"Received: from mail.example [203.0.113.10] by mx.example; Mon, 01 Jan 2026 10:00:00 +0000\n"
+        b"Received: from broken.example [999.999.999.999] by mx.example; Mon, 01 Jan 2026 09:59:00 +0000\n"
+        b"\n"
+        b"Normal message body.\n"
+    )
+
+    settings = Settings(
+        auth_results_mode="trusted_ingress",
+        trusted_authserv_id="mx",
+    )
+
+    result = Analyzer(settings, providers=[]).analyze(raw)
+
+    assert result.completeness.areas["mail_flow"].status == "partial"
+    assert result.completeness.areas["mail_flow"].required is False
+    assert result.completeness.overall_status == "complete"
+    assert any(
+        item.signal_id == "received_hop_malformed"
+        for item in result.evidence
+    )
+    assert result.verdict.final == "CLEAN"
