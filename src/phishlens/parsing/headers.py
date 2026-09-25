@@ -27,6 +27,27 @@ def address_domain(value: str | None) -> str | None:
 
 def header_evidence(email: ParsedEmail, auth: AuthenticationEvidence | None = None) -> list[EvidenceItem]:
     findings: list[EvidenceItem] = []
+
+    for header_name in ("from", "reply-to", "return-path", "message-id"):
+        values = email.headers.get(header_name, [])
+        if len(values) > 1:
+            findings.append(EvidenceItem(
+                signal_id="duplicate_identity_header",
+                category="identity",
+                severity="medium",
+                evidence={
+                    "header": header_name,
+                    "value_count": len(values),
+                },
+                explanation=(
+                    f"The {header_name} header appears multiple times; "
+                    "identity analysis is incomplete because no single value "
+                    "should be treated as authoritative."
+                ),
+                source="local_header_analysis",
+                reliability="high",
+                points=0,
+            ))
     from_domain = address_domain(email.from_address)
     reply_domain = address_domain(email.reply_to)
     return_domain = address_domain(email.return_path)
