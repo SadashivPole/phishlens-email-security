@@ -57,7 +57,7 @@ class Analyzer:
         evidence.extend(attachment_evidence(email))
         content_findings = content_evidence(email)
         evidence.extend(content_findings)
-        iocs = extract_iocs(email, urls, evidence)
+        iocs = extract_iocs(email, urls, evidence, authentication=auth)
         threat_intelligence = self.enrichment.enrich(iocs)
         evidence.extend(threat_intel_evidence(threat_intelligence))
         url_status = "partial" if any(item.analysis_status != "complete" for item in urls) else "complete"

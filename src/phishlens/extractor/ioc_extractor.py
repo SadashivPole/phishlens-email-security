@@ -6,6 +6,7 @@ from email.utils import parseaddr
 from urllib.parse import urlsplit
 
 from ..models.email import ParsedEmail
+from ..parsing.authentication import AuthenticationEvidence
 from ..models.evidence import EvidenceItem
 from ..models.ioc import IOC
 from ..models.indicators import UrlIndicator
@@ -19,6 +20,7 @@ def extract_iocs(
     email: ParsedEmail,
     urls: list[UrlIndicator],
     evidence: list[EvidenceItem] | None = None,
+    authentication: AuthenticationEvidence | None = None,
 ) -> list[IOC]:
     found: dict[tuple[str, str], IOC] = {}
 
@@ -42,6 +44,24 @@ def extract_iocs(
         domain = _domain(value)
         if domain:
             add(IOC("domain", domain, domain, source, {"field": source}))
+
+    # Authentication-Results domains are provider-eligible only when the
+    # authentication parser explicitly accepted the header under the
+    # configured trust boundary.
+    if authentication is not None and authentication.decision_eligible:
+        for method in ("spf", "dkim", "dmarc", "arc"):
+            for item in getattr(authentication, method):
+                domain = _normalize_domain(item.domain) if item.domain else None
+                if domain:
+                    add(
+                        IOC(
+                            "domain",
+                            item.domain or domain,
+                            domain,
+                            "authentication_results",
+                            {"method": method},
+                        )
+                    )
 
     for hop in email.received_hops:
         for ip in hop.source_ips:
@@ -90,9 +110,9 @@ def _email_address_values(email: ParsedEmail):
     for value, source in values:
         if value:
             yield value, source
-    for header in email.authentication_results:
-        for match in re.findall(r"(?:smtp\.mailfrom|header\.from|header\.d|d)=([^\s;]+)", header, re.IGNORECASE):
-            yield match, "authentication_results"
+    # Raw Authentication-Results are intentionally excluded here.
+    # Trust-aware authentication domains are added only from parsed,
+    # decision-eligible AuthenticationEvidence above.
 
 
 def _add_host_ioc(add, hostname: str, source: str, provenance: dict[str, object]) -> None:
