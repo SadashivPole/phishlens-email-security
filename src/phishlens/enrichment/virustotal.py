@@ -135,12 +135,20 @@ def _sanitize_url_for_lookup(value: str) -> str:
         raise ValueError("unsupported provider URL")
     # Accessing port validates malformed port values before any request is made.
     parsed.port
+
+    hostname = parsed.hostname
+    netloc = hostname
+    if ":" in hostname and not hostname.startswith("["):
+        netloc = f"[{hostname}]"
+    if parsed.port is not None:
+        netloc = f"{netloc}:{parsed.port}"
+
     query = [
         (key, item)
         for key, item in parse_qsl(parsed.query, keep_blank_values=True, strict_parsing=True)
         if key.lower() not in _PROVIDER_SENSITIVE_QUERY_PARAMS
     ]
-    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), ""))
+    return urlunsplit((parsed.scheme, netloc, parsed.path, urlencode(query), ""))
 
 
 def _count(stats: dict[object, object], key: str) -> int:
