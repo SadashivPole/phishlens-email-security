@@ -49,6 +49,15 @@ def _redact_url(url: str) -> str:
             (key, "[REDACTED]" if key.lower() in SENSITIVE_QUERY_PARAMS else value)
             for key, value in parse_qsl(parsed.query, keep_blank_values=True)
         ]
-        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), ""))
+
+        # Never expose URL userinfo credentials in safe output.
+        hostname = parsed.hostname or ""
+        netloc = hostname
+        if ":" in hostname and not hostname.startswith("["):
+            netloc = f"[{hostname}]"
+        if parsed.port is not None:
+            netloc = f"{netloc}:{parsed.port}"
+
+        return urlunsplit((parsed.scheme, netloc, parsed.path, urlencode(query), ""))
     except (ValueError, UnicodeError):
         return "[REDACTED_INVALID_URL]"
