@@ -9,7 +9,7 @@ from ..models.email import ParsedEmail
 from ..models.evidence import EvidenceItem
 from ..models.indicators import UrlIndicator
 
-URL_RE = re.compile(r"https?://[^\s<>\"'{}|\\^`\[\]]+", re.IGNORECASE)
+URL_RE = re.compile(r"https?://[^\s<>\"'{}|\\^`]+", re.IGNORECASE)
 SHORTENERS = {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly", "lnkd.in"}
 REDIRECT_QUERY_KEYS = {"url", "u", "redirect", "redirect_url", "target", "dest", "destination", "next", "continue", "return", "link", "redir"}
 
