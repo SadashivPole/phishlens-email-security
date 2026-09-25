@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 from urllib.error import HTTPError
+from urllib.parse import unquote, urlsplit
 
 from src.phishlens.config import VirusTotalConfig
 from src.phishlens.enrichment.virustotal import VirusTotalProvider
@@ -23,6 +24,11 @@ def provider(http_get):
 
 def response(stats: dict[str, int]) -> bytes:
     return json.dumps({"data": {"attributes": {"last_analysis_stats": stats}}}).encode()
+
+
+def requested_url_value(request) -> str:
+    encoded = unquote(urlsplit(request.full_url).path.rsplit("/", 1)[-1])
+    return base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)).decode()
 
 
 def test_missing_api_key_is_unavailable_without_http():
@@ -124,14 +130,57 @@ def test_hash_lookup_does_not_upload_attachment():
     assert "/files/" in requests[0].full_url
 
 
-def test_url_lookup_uses_fixed_virustotal_api_not_arbitrary_url():
+def test_url_lookup_sanitizes_sensitive_query_values_for_virustotal():
     requests = []
     adapter = provider(lambda request, timeout: (404, requests.append(request) or b"{}"))
-    target = "https://example.test/path?token=do-not-fetch"
+    target = "https://example.test/path?token=top-secret&email=user@example.com&campaign=spring"
     result = adapter.lookup_url(ioc("url", target))
+
     assert result.status == "no_match"
+    assert result.ioc_value == target
+    assert len(requests) == 1
     request = requests[0]
-    expected_id = base64.urlsafe_b64encode(target.encode()).decode().rstrip("=")
+    provider_url = requested_url_value(request)
     assert request.full_url.startswith("https://www.virustotal.com/api/v3/urls/")
-    assert expected_id in request.full_url
-    assert target not in request.full_url
+    assert provider_url == "https://example.test/path?campaign=spring"
+    assert "top-secret" not in request.full_url
+    assert "user@example.com" not in request.full_url
+    assert "top-secret" not in provider_url
+    assert "user@example.com" not in provider_url
+
+
+def test_pipeline_keeps_local_url_ioc_while_provider_receives_sanitized_url():
+    requests = []
+    adapter = provider(lambda request, timeout: (404, requests.append(request) or b"{}"))
+    target = "https://example.test/reset?token=local-secret&email=analyst@example.com&source=mail"
+    raw = (
+        b"From: sender@example.com\n"
+        b"Authentication-Results: mx; spf=pass; dkim=pass; dmarc=pass\n\n"
+        + target.encode()
+    )
+
+    result = Analyzer(providers=[adapter]).analyze(raw)
+    local_url = next(item for item in result.iocs if item.ioc_type == "url")
+    url_request = next(request for request in requests if "/urls/" in request.full_url)
+
+    assert local_url.normalized_value == target
+    assert requested_url_value(url_request) == "https://example.test/reset?source=mail"
+    assert "local-secret" not in url_request.full_url
+    assert "analyst@example.com" not in url_request.full_url
+
+
+def test_url_sanitization_failure_prevents_http(monkeypatch):
+    calls = []
+    adapter = provider(lambda request, timeout: calls.append(request))
+
+    def fail_sanitization(value):
+        raise ValueError("unsafe URL")
+
+    monkeypatch.setattr("src.phishlens.enrichment.virustotal._sanitize_url_for_lookup", fail_sanitization)
+    target = "https://example.test/reset?token=must-not-leave"
+    result = adapter.lookup_url(ioc("url", target))
+
+    assert result.status == "unavailable"
+    assert result.error == "url_sanitization_failed"
+    assert result.ioc_value == target
+    assert calls == []

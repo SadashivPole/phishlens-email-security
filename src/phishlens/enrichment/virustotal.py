@@ -4,10 +4,11 @@ import base64
 import json
 from collections.abc import Callable
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 from ..config import VirusTotalConfig
+from ..models.indicators import SENSITIVE_QUERY_PARAMS
 from ..models.ioc import IOC
 from ..models.threat_intel import ThreatIntelResult
 
@@ -34,7 +35,11 @@ class VirusTotalProvider:
     def lookup_url(self, ioc: IOC) -> ThreatIntelResult:
         if ioc.ioc_type != "url":
             return self._unsupported(ioc)
-        url_id = base64.urlsafe_b64encode(ioc.normalized_value.encode("utf-8")).decode("ascii").rstrip("=")
+        try:
+            provider_url = _sanitize_url_for_lookup(ioc.normalized_value)
+        except (TypeError, ValueError, UnicodeError):
+            return self._result(ioc, "unavailable", error="url_sanitization_failed")
+        url_id = base64.urlsafe_b64encode(provider_url.encode("utf-8")).decode("ascii").rstrip("=")
         return self._lookup(ioc, "urls", url_id)
 
     def lookup_hash(self, ioc: IOC) -> ThreatIntelResult:
@@ -119,6 +124,23 @@ class VirusTotalProvider:
             source="virustotal_api",
             **fields,
         )
+
+
+_PROVIDER_SENSITIVE_QUERY_PARAMS = SENSITIVE_QUERY_PARAMS | {"email"}
+
+
+def _sanitize_url_for_lookup(value: str) -> str:
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("unsupported provider URL")
+    # Accessing port validates malformed port values before any request is made.
+    parsed.port
+    query = [
+        (key, item)
+        for key, item in parse_qsl(parsed.query, keep_blank_values=True, strict_parsing=True)
+        if key.lower() not in _PROVIDER_SENSITIVE_QUERY_PARAMS
+    ]
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), ""))
 
 
 def _count(stats: dict[object, object], key: str) -> int:
