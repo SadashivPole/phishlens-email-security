@@ -22,9 +22,9 @@
         "status": "complete"
       },
       "authentication": {
-        "note": "Authentication-Results assertions were observed and parsed.",
+        "note": "Authentication-Results assertions are untrusted for raw input and are informational only.",
         "required": true,
-        "status": "complete"
+        "status": "not_evaluable"
       },
       "content": {
         "note": "Deterministic local content heuristics were applied.",
@@ -33,6 +33,11 @@
       },
       "identity": {
         "note": "Available identity headers were inspected.",
+        "required": true,
+        "status": "complete"
+      },
+      "ioc_extraction": {
+        "note": "Indicators of compromise were extracted and deduplicated locally.",
         "required": true,
         "status": "complete"
       },
@@ -62,17 +67,18 @@
         "status": "complete"
       }
     },
-    "overall_status": "complete"
+    "overall_status": "partial"
   },
   "email": {
     "attachment_count": 0,
     "cc_addresses": [],
-    "date": null,
-    "from_address": "operations@example.net",
-    "message_id": null,
-    "raw_size_bytes": 290,
+    "date": "Thu, 01 Jan 2026 10:00:00 +0000",
+    "from_address": "notifications@example.com",
+    "identity_header_conflicts": {},
+    "message_id": "<report@example.com>",
+    "raw_size_bytes": 314,
     "reply_to": null,
-    "subject": "Review requested",
+    "subject": "Monthly report",
     "to_addresses": [
       "analyst@example.net"
     ]
@@ -80,65 +86,78 @@
   "errors": [],
   "evidence": [
     {
-      "category": "url",
+      "category": "identity",
       "evidence": {
-        "analysis_error": null,
-        "analysis_status": "complete",
-        "context": "text",
-        "display_mismatch": false,
-        "domain": "203.0.113.44",
-        "has_punycode": false,
-        "has_userinfo": false,
-        "hostname": "203.0.113.44",
-        "is_ip_literal": true,
-        "is_shortened": false,
-        "normalized_url": "http://203.0.113.44/status",
-        "redirect_indicator": false,
-        "suspicious_encoding": false,
-        "suspicious_port": false
+        "alignment": "not_evaluable",
+        "authenticated_domains": [],
+        "decision_eligible": false,
+        "effective_alignment": "unknown",
+        "from_domain": "example.com",
+        "mechanism": "spf",
+        "provenance": {
+          "analysis": "domain comparison only",
+          "policy_mode": "unknown",
+          "source": "Authentication-Results",
+          "verification": "no independent SPF DNS or DKIM cryptographic verification"
+        },
+        "trust": "untrusted_assertion"
       },
-      "explanation": "The URL destination is an IP literal rather than a hostname; this is suspicious but not proof of maliciousness.",
+      "explanation": "SPF alignment could not be evaluated from the available Authentication-Results properties; effective DMARC alignment is unknown and this is not independent SPF verification.",
       "hard_indicator": false,
-      "points": 4,
-      "reliability": "medium",
-      "severity": "medium",
-      "signal_id": "ip_literal_url",
-      "source": "local_url_analysis"
+      "points": 0,
+      "reliability": "low",
+      "severity": "info",
+      "signal_id": "spf_alignment_not_evaluable",
+      "source": "authentication_results"
+    },
+    {
+      "category": "identity",
+      "evidence": {
+        "alignment": "not_evaluable",
+        "authenticated_domains": [],
+        "decision_eligible": false,
+        "effective_alignment": "unknown",
+        "from_domain": "example.com",
+        "mechanism": "dkim",
+        "provenance": {
+          "analysis": "domain comparison only",
+          "policy_mode": "unknown",
+          "source": "Authentication-Results",
+          "verification": "no independent SPF DNS or DKIM cryptographic verification"
+        },
+        "trust": "untrusted_assertion"
+      },
+      "explanation": "DKIM alignment could not be evaluated from the available Authentication-Results properties; effective DMARC alignment is unknown and this is not independent DKIM verification.",
+      "hard_indicator": false,
+      "points": 0,
+      "reliability": "low",
+      "severity": "info",
+      "signal_id": "dkim_alignment_not_evaluable",
+      "source": "authentication_results"
     }
   ],
   "iocs": [
     {
-      "ioc_type": "url",
-      "normalized_value": "http://203.0.113.44/status",
-      "original_value": null,
+      "ioc_type": "domain",
+      "normalized_value": "example.com",
+      "original_value": "example.com",
       "provenance": {
-        "context": "text"
-      },
-      "source": "local_url_analysis"
-    },
-    {
-      "ioc_type": "ip",
-      "normalized_value": "203.0.113.44",
-      "original_value": "203.0.113.44",
-      "provenance": {
+        "field": "from_address",
         "sources": [
-          "local_url_analysis"
-        ],
-        "url": "http://203.0.113.44/status"
+          "message_id",
+          "authentication_results"
+        ]
       },
-      "source": "local_url_analysis"
+      "source": "from_address"
     },
     {
       "ioc_type": "domain",
       "normalized_value": "example.net",
       "original_value": "example.net",
       "provenance": {
-        "field": "from_address",
-        "sources": [
-          "recipient"
-        ]
+        "field": "recipient"
       },
-      "source": "from_address"
+      "source": "recipient"
     }
   ],
   "schema_version": "1.0",
@@ -155,32 +174,19 @@
       "authentication": 0,
       "content": 0,
       "identity": 0,
-      "url": 4
+      "url": 0
     },
     "hard_indicators": [],
     "maximum_score": 70,
-    "total_score": 4
+    "total_score": 0
   },
   "threat_intelligence": [
     {
       "confidence": null,
       "disposition": null,
       "error": null,
-      "ioc_type": "url",
-      "ioc_value": "[REDACTED_URL]",
-      "observed_indicators": [],
-      "provider": "none",
-      "reputation": null,
-      "source": "enrichment_disabled",
-      "status": "not_attempted",
-      "timestamp": null
-    },
-    {
-      "confidence": null,
-      "disposition": null,
-      "error": null,
-      "ioc_type": "ip",
-      "ioc_value": "203.0.113.44",
+      "ioc_type": "domain",
+      "ioc_value": "example.com",
       "observed_indicators": [],
       "provider": "none",
       "reputation": null,
@@ -202,29 +208,12 @@
       "timestamp": null
     }
   ],
-  "urls": [
-    {
-      "analysis_error": null,
-      "analysis_status": "complete",
-      "context": "text",
-      "display_mismatch": false,
-      "domain": "203.0.113.44",
-      "has_punycode": false,
-      "has_userinfo": false,
-      "hostname": "203.0.113.44",
-      "is_ip_literal": true,
-      "is_shortened": false,
-      "normalized_url": "http://203.0.113.44/status",
-      "redirect_indicator": false,
-      "suspicious_encoding": false,
-      "suspicious_port": false
-    }
-  ],
+  "urls": [],
   "verdict": {
-    "analysis_status": "complete",
-    "final": "CLEAN",
+    "analysis_status": "partial",
+    "final": "UNRESOLVED",
     "hard_indicators": [],
-    "reason": "Supported local analysis completed without material suspicious evidence; this does not prove global safety.",
+    "reason": "Required local analysis was incomplete or unavailable, so a clean conclusion is not supported.",
     "risk_band": "low"
   }
 }

@@ -1,4 +1,4 @@
-# PhishLens
+﻿# PhishLens
 
 PhishLens is a local-first, explainable email-analysis tool for SOC triage. It turns an `.eml` message into a bounded risk score, a cautious verdict, explicit per-area completeness states, IOC records, and provenance-backed evidence. All local detection and scoring is deterministic; optional VirusTotal and AbuseIPDB lookups add evidence records without changing the verdict or the score.
 
@@ -50,10 +50,24 @@ Authentication alignment is informational. PhishLens compares the visible From d
 
 The verdict policy applies in this order (first match wins):
 
-1. **MALICIOUS** - requires a high-confidence hard indicator. No hard indicators are defined in this release, so no analyzer or provider result can produce `MALICIOUS` in v1.1.0. The mechanism exists for future, explicitly defined indicators.
+1. **MALICIOUS** - requires a high-confidence hard indicator. No hard indicators are currently defined in the shipped analyzers or provider policy, so `MALICIOUS` is currently unreachable. The mechanism exists for future, explicitly defined indicators.
 2. **SUSPICIOUS** - local evidence is materially concerning: one high-severity material finding, two or more medium-severity material findings, or a total score of at least 10 together with a material finding.
 3. **UNRESOLVED** - a required local analysis area (parser, identity, authentication, URL, or attachment) could not be safely evaluated - for example malformed input, missing Authentication-Results evidence, or a URL candidate that could not be normalized - and no material suspicious evidence was found. Note the precedence: material suspicious evidence yields `SUSPICIOUS` even when required analysis is incomplete; the incomplete state remains visible in `analysis_status` and in the `completeness` block.
 4. **CLEAN** - required local analysis completed without material suspicious evidence. This does not prove global safety.
+
+### Default authentication/verdict behavior
+
+For arbitrary raw `.eml` input, message-supplied `Authentication-Results` are treated as attacker-controlled data.
+
+With the default:
+
+`PHISHLENS_AUTH_RESULTS_MODE=raw`
+
+those assertions cannot complete the required authentication analysis. Therefore `CLEAN` is not reachable in default `raw` mode; an otherwise benign message can return `UNRESOLVED`.
+
+`CLEAN` requires `trusted_ingress` mode with a matching `PHISHLENS_TRUSTED_AUTHSERV_ID`. This configuration assumes a controlled ingress removed untrusted Authentication-Results before adding the trusted assertion.
+
+`trusted_ingress` does not independently prove SPF, DKIM, DMARC, or ARC authenticity.
 
 Scoring:
 
@@ -89,6 +103,7 @@ API keys and limits are read only from environment variables when `Settings()` i
 |`PHISHLENS_TI_TIMEOUT_SECONDS`|10|Per-request timeout in seconds. Invalid, zero, or non-finite values fall back to the default.|
 | `PHISHLENS_TI_MAX_REQUESTS_PER_EMAIL` | `50` | Maximum threat-intelligence provider lookup attempts per email, shared across all enabled providers. Invalid or non-positive values fall back to the default. |
 | `PHISHLENS_MAX_IOCS_PER_EMAIL` | `50000` | Maximum retained IOC objects per email. Later indicators are skipped, `ioc_extraction` reports `partial`, and the verdict cannot be `CLEAN`. Invalid or non-positive values fall back to the default. |
+| `PHISHLENS_MAX_URLS_PER_EMAIL` | `50000` | Maximum retained URL indicators per email. Later URL candidates are not retained, the `url` completeness area becomes `partial`, and required incomplete analysis cannot become `CLEAN`. Invalid or non-positive values fall back to the default. |
 |`PHISHLENS_MAX_EMAIL_BYTES`|10485760 (10 MiB)|Larger inputs fail parsing and produce `UNRESOLVED`. Invalid or non-positive values fall back to the default.|
 |`PHISHLENS_MAX_ATTACHMENT_BYTES`|5242880 (5 MiB)|Larger attachments fail parsing and produce `UNRESOLVED`. Invalid or non-positive values fall back to the default.|
 |`PHISHLENS_AUTH_RESULTS_MODE`|`raw`|`raw` treats message-supplied Authentication-Results as untrusted informational assertions. `trusted_ingress` is an explicit opt-in for messages received through a controlled, header-sanitizing ingress. Invalid values fall back to `raw`.|
@@ -138,8 +153,8 @@ python analyze.py message.eml --json > safe-report.json
 Example results from the bundled fixtures (`tests/fixtures/`):
 
 ```text
-phishing.eml  -> VERDICT: SUSPICIOUS, RISK SCORE: 26/70, ANALYSIS STATUS: complete
-clean.eml     -> VERDICT: CLEAN, RISK SCORE: 0/70, ANALYSIS STATUS: complete
+phishing.eml  -> VERDICT: SUSPICIOUS, RISK SCORE: 18/70, ANALYSIS STATUS: partial
+clean.eml     -> VERDICT: UNRESOLVED, RISK SCORE: 0/70, ANALYSIS STATUS: partial
 malformed.eml -> VERDICT: UNRESOLVED, RISK SCORE: 0/70, ANALYSIS STATUS: unavailable
 ```
 
@@ -169,7 +184,7 @@ PhishLens:
 
 Provider failures are observable in TI results and completeness. They are not evidence of safety and are not silently treated as provider no-match.
 
-See `docs/sample-safe-output.json` for a sanitized report example. It contains no body, full headers, attachment payload, sensitive URL query value, or API key. The sample was generated with an earlier release; current v1.1.0 output additionally includes SPF/DKIM alignment evidence items.
+See `docs/sample-safe-output.json` for a sanitized report example. It contains no body, full headers, attachment payload, sensitive URL query value, or API key. The sample was generated from the current codebase.
 
 ## Testing and CI
 
@@ -179,7 +194,7 @@ Run the complete offline suite:
 pytest -q
 ```
 
-The test suite comprises 158 tests across 20 test modules under `tests/`, with 14 `.eml` fixtures. It covers parsing, header and authentication analysis, domain alignment, URL/content/attachment analysis, IOC extraction, provider adapters and wiring, scoring policy, end-to-end fixtures, release readiness, and CLI behavior. Provider HTTP requests are always injected or monkeypatched, so no test performs external network access or requires credentials. One test patches `socket.socket` to fail if any network connection is attempted. A release-readiness test also verifies that this README retains its required contract sections and that the CI workflow remains offline and secret-free.
+The test suite comprises 272 passing tests across 33 test modules under `tests/`, with 13 `.eml` fixtures. It covers parsing, header and authentication analysis, domain alignment, URL/content/attachment analysis, IOC extraction, provider adapters and wiring, scoring policy, end-to-end fixtures, release readiness, and CLI behavior. Provider HTTP requests are always injected or monkeypatched, so no test performs external network access or requires credentials. One test patches `socket.socket` to fail if any network connection is attempted. A release-readiness test also verifies that this README retains its required contract sections and that the CI workflow remains offline and secret-free.
 
 
 
@@ -207,7 +222,7 @@ tests/                      offline test suite and .eml fixtures
 * Basic URL canonicalization; a URL candidate that cannot be safely normalized marks URL analysis `partial`.
 * Content analysis is a small set of regular-expression language heuristics (credential, urgency, payment, verification, call-to-action, and BEC patterns). Content is an optional completeness area - an empty body does not force `UNRESOLVED` - but content findings do contribute points and can trigger `SUSPICIOUS`.
 * The `reputation` completeness area is a fixed placeholder that always reports `unavailable` in this release, even when TI providers are enabled; TI state is reported separately in the `threat_intelligence` area.
-* No mailbox, Gmail, Graph, IMAP, database, UI, or web API integration; the only interface is the local CLI.
+* Current interfaces are the local CLI, the Python library API, and machine-readable JSON output. There are no native mailbox, Gmail, Graph, IMAP, database, UI, REST/webhook, SOAR, or SIEM integrations.
 * No LLM, automatic remediation, quarantine, deletion, or response actions.
 * No AbuseIPDB lookup for non-IP IOCs.
 * Provider responses may be unavailable, stale, rate-limited, or incomplete.
