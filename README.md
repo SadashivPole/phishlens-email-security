@@ -2,7 +2,7 @@
 
 PhishLens is a local-first, explainable email-analysis tool for SOC triage. It turns an `.eml` message into a bounded risk score, a cautious verdict, explicit per-area completeness states, IOC records, and provenance-backed evidence. All local detection and scoring is deterministic; optional VirusTotal and AbuseIPDB lookups add evidence records without changing the verdict or the score.
 
-Current version: 1.2.0 (`pyproject.toml`, git tag `v1.2.0`). License: MIT (`LICENSE`).
+Current version: 1.3.0 (`pyproject.toml`, git tag `v1.3.0`). License: MIT (`LICENSE`).
 
 ## What problem it solves
 
