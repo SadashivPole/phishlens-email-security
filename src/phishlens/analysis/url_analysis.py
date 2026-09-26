@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import ipaddress
 import re
+from dataclasses import dataclass
 from urllib.parse import SplitResult, parse_qsl, urlsplit, urlunsplit
 
 from ..models.email import ParsedEmail
@@ -14,7 +15,30 @@ SHORTENERS = {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff
 REDIRECT_QUERY_KEYS = {"url", "u", "redirect", "redirect_url", "target", "dest", "destination", "next", "continue", "return", "link", "redir"}
 
 
-def extract_urls(email: ParsedEmail) -> list[UrlIndicator]:
+@dataclass
+class URLExtractionLimits:
+    """Bound and outcome for URL extraction."""
+
+    max_urls: int | None = None
+    truncated: bool = False
+
+    def __post_init__(self) -> None:
+        if self.max_urls is None:
+            return
+        if (
+            not isinstance(self.max_urls, int)
+            or isinstance(self.max_urls, bool)
+            or self.max_urls < 1
+        ):
+            raise ValueError("max_urls must be a positive integer or None")
+
+
+
+def extract_urls(
+    email: ParsedEmail,
+    *,
+    limits: URLExtractionLimits | None = None,
+) -> list[UrlIndicator]:
     indicators: list[UrlIndicator] = []
     positions: dict[str, int] = {}
 
@@ -24,13 +48,22 @@ def extract_urls(email: ParsedEmail) -> list[UrlIndicator]:
         # context that generic HTML scanning cannot reliably provide.
         key = item.normalized_url or f"malformed:{item.original_url}"
         existing_position = positions.get(key)
-        if existing_position is None:
-            positions[key] = len(indicators)
-            indicators.append(item)
+        if existing_position is not None:
+            existing = indicators[existing_position]
+            if item.display_text and not existing.display_text:
+                indicators[existing_position] = item
             return
-        existing = indicators[existing_position]
-        if item.display_text and not existing.display_text:
-            indicators[existing_position] = item
+
+        if (
+            limits is not None
+            and limits.max_urls is not None
+            and len(indicators) >= limits.max_urls
+        ):
+            limits.truncated = True
+            return
+
+        positions[key] = len(indicators)
+        indicators.append(item)
 
     for value, context in ((email.body_text, "text"), (email.body_html, "html")):
         decoded = html.unescape(value or "")

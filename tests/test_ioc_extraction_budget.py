@@ -236,6 +236,6 @@ def test_default_limit_bounds_hostile_email():
 
     assert len(result.iocs) == 50_000
     assert result.completeness.areas["ioc_extraction"].status == "partial"
-    assert result.completeness.areas["url"].status == "complete"
+    assert result.completeness.areas["url"].status == "partial"
     assert result.verdict.final != "CLEAN"
 

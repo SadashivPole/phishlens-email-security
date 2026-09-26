@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ..analysis.attachment_analysis import attachment_evidence
 from ..analysis.content_analysis import content_evidence
-from ..analysis.url_analysis import extract_urls, url_evidence
+from ..analysis.url_analysis import URLExtractionLimits, extract_urls, url_evidence
 from ..config import Settings
 from ..extractor.ioc_extractor import IOCExtractionLimits, extract_iocs
 from ..enrichment.configured import providers_from_config
@@ -55,7 +55,8 @@ class Analyzer:
         evidence.extend(header_findings)
         evidence.extend(authentication_evidence_items(auth))
         evidence.extend(received_evidence(email))
-        urls = extract_urls(email)
+        url_limits = URLExtractionLimits(max_urls=self.settings.max_urls_per_email)
+        urls = extract_urls(email, limits=url_limits)
         evidence.extend(url_evidence(urls))
         evidence.extend(attachment_evidence(email))
         content_findings = content_evidence(email)
@@ -72,8 +73,18 @@ class Analyzer:
         )
         threat_intelligence = self.enrichment.enrich(iocs)
         evidence.extend(threat_intel_evidence(threat_intelligence))
-        url_status = "partial" if any(item.analysis_status != "complete" for item in urls) else "complete"
-        url_note = "One or more URL candidates could not be safely normalized." if url_status == "partial" else "URLs were inspected without fetching them."
+        url_status = (
+            "partial"
+            if url_limits.truncated or any(item.analysis_status != "complete" for item in urls)
+            else "complete"
+        )
+        url_note = (
+            "URL extraction was capped at the configured maximum; later URL candidates were not retained."
+            if url_limits.truncated
+            else "One or more URL candidates could not be safely normalized."
+            if url_status == "partial"
+            else "URLs were inspected without fetching them."
+        )
         mail_flow_status = "partial" if any(hop.malformed for hop in email.received_hops) else "complete"
         mail_flow_note = "One or more Received headers were malformed." if mail_flow_status == "partial" else "Received headers were inspected where available."
         content_status = "complete" if (email.body_text or email.body_html).strip() else "not_evaluable"
